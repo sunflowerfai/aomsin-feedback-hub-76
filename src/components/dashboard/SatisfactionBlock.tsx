@@ -548,7 +548,8 @@ export const SatisfactionBlock = () => {
   const barChartData = calculateBarChartData();
   return <div className="relative rounded-xl border border-slate-100 bg-white shadow-sm p-0">
       {/* Single pink header stripe */}
-      <div className="absolute inset-x-0 top-0 h-1.5 bg-pink-400 rounded-t-xl" aria-hidden="true"></div>
+      <div className="h-2 rounded-t-2xl"
+        style={{ background: 'var(--gradient-pink-strip)' }}></div>
       
       {/* Parent Header */}
       <div className="px-6 py-6 border-b border-slate-100">
@@ -774,6 +775,7 @@ export const RegionalComparisonCard = () => {
   const regionalData = calculateFilteredData();
   return <Card className="rounded-lg border shadow-sm bg-white p-6">
       {/* Header */}
+      <div className="h-2 bg-gradient-to-r from-[#DF7AB0] to-[#F9B5D3] rounded-t-xl -mt-6 -mx-6 mb-6"></div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-base font-semibold font-kanit text-foreground text-center">เปรียบเทียบคะแนนรายภาค</h3>
         <TopicFilterDropdown value={filters.topic} onValueChange={value => setFilters({

@@ -7,6 +7,10 @@ import AomsinLogin from "./pages/AomsinLogin";
 import Dashboard from "./pages/Dashboard";
 import MarketConduct from "./pages/MarketConduct";
 import NotFound from "./pages/NotFound";
+import Aichatbot from './pages/Aichatbot';
+import RegionalDashboardOnePage from "./pages/RegionalDashboardOnePage";
+import StrongComplaints from './pages/StrongComplaints';
+import CustomerFeedback from "./pages/CustomerFeedback";
 
 const queryClient = new QueryClient();
 
@@ -18,9 +22,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AomsinLogin />} />
+          <Route path="/ai-chatbot" element={<Aichatbot />} />
+          <Route path="/customer-feedback" element={<CustomerFeedback />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/market-conduct" element={<MarketConduct />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/regional" element={<RegionalDashboardOnePage />} />
+          <Route path="/strong-complaints" element={<StrongComplaints />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

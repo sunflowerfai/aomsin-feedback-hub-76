@@ -13,6 +13,8 @@ All colors MUST be HSL.
     --topbar-h: 96px;
     --rail-w: 68px;
     --rail-gap: 24px;
+    --page-max-w: 1200px;   /* ปรับได้ตามดีไซน์ (เช่น 1120/1280) */
+    --footer-h: 0px;        /* ถ้ามี footer แบบ fixed ตั้งค่าสูงจริง เช่น 64px */
     
     --background: 0 0% 100%;
     --foreground: 0 0% 15%;
@@ -120,6 +122,8 @@ All colors MUST be HSL.
 
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+  *, *::before, *::after { box-sizing: border-box; }
+html, body, #root { min-height: 100dvh; }
 
   .dark {
     --background: 0 0% 9%;
@@ -193,21 +197,38 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-card);
   }
 
-  /* Layout Classes */
-  .topbar {
-    position: fixed;
-    inset: 0 0 auto 0;
-    height: var(--topbar-h);
-    z-index: 100;
-    background: var(--gradient-topbar);
-    display: flex;
-    align-items: center;
-  }
+.topbar {
+  position: static;          /* เดิมเป็น fixed */
+  /* inset ใช้กับตำแหน่งที่ไม่ใช่ static—เอาออกได้ */
+  height: var(--topbar-h);
+  background: var(--gradient-topbar);
+  display: flex;
+  align-items: center;
+  /* z-index ไม่จำเป็นกับ static เอาออกได้ */
+}
 
-  .main-content {
-    padding-top: var(--topbar-h);
-    margin-left: calc(var(--rail-w) + var(--rail-gap));
-  }
+/* ลบ/ปิดการใช้ padding-top ที่เคยชดเชย header fixed */
+body, .main-content {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* พื้นที่คอนเทนต์หลัก: มีระยะซ้ายเผื่อ mini-rail และสูงเท่ากันทุกหน้า */
+.main-content {
+  margin-left: calc(var(--rail-w) + var(--rail-gap));
+  min-height: calc(100dvh - var(--topbar-h) - var(--footer-h));
+  padding: 24px 0; /* เว้นระยะแนวตั้งนิดหน่อย (ปรับได้) */
+}
+
+/* หน้าจอเล็ก ซ่อน rail แล้วเอาคอนเทนต์ชิดกลาง */
+@media (max-width: 1024px) {
+  .main-content { margin-left: calc(var(--rail-w) + 12px); }
+}
+@media (max-width: 768px) {
+  .mini-rail { display: none; }
+  .main-content { margin-left: 0; }
+}
+
 
   .mini-rail {
     position: fixed;
@@ -235,6 +256,13 @@ All colors MUST be HSL.
     border: 1px solid transparent;
     transition: all 0.2s ease-out;
   }
+
+  /* คอนเทนเนอร์กลางหน้า: จำกัดความกว้างและจัดกึ่งกลาง */
+.page-container {
+  width: min(100% - 32px, var(--page-max-w)); /* มี padding ด้านข้างรวม ~32px */
+  margin-inline: auto;
+}
+
 
   .mini-rail button:hover {
     background: #FFF1F7;

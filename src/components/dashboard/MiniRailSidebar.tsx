@@ -1,167 +1,116 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
+import {
   Menu,
-  BarChart3, 
-  MapPin, 
-  MessageSquareText, 
-  AlertTriangle, 
-  Bot, 
+  BarChart3,
+  MapPin,
+  MessageSquareText,
+  AlertTriangle,
+  Bot,
   FileText,
-  Briefcase 
+  Briefcase,
 } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 
 interface MiniRailSidebarProps {
-  activeMenu: string;
-  onMenuSelect: (item: string) => void;
+  /** ถ้าส่ง label มาจะบังคับให้ item นั้น active */
+  activeMenu?: string;
+  onMenuSelect?: (item: string) => void;
   onToggleMainSidebar?: () => void;
   className?: string;
 }
 
-const menuItems = [
-  {
-    icon: BarChart3,
-    label: "สรุปภาพรวมประจำเดือน",
-    tooltip: "สรุปภาพรวมประจำเดือน",
-  },
-  {
-    icon: MapPin,
-    label: "ผลการดำเนินงานรายพื้นที่",
-    tooltip: "ผลการดำเนินงานรายพื้นที่",
-  },
-  {
-    icon: MessageSquareText,
-    label: "ข้อคิดเห็นของลูกค้า",
-    tooltip: "ข้อคิดเห็นของลูกค้า",
-  },
-  {
-    icon: AlertTriangle,
-    label: "ข้อร้องเรียนของลูกค้า",
-    tooltip: "ข้อร้องเรียนของลูกค้า",
-  },
-  {
-    icon: Briefcase,
-    label: "Market Conduct",
-    tooltip: "Market Conduct",
-  },
-  {
-    icon: Bot,
-    label: "AI Chat ช่วยวิเคราะห์",
-    tooltip: "AI Chat ช่วยวิเคราะห์",
-  },
-  {
-    icon: FileText,
-    label: "เอกสารอ้างอิง",
-    tooltip: "เอกสารอ้างอิง",
-  },
+type RailItem = {
+  icon: any;
+  label: string;
+  tooltip: string;
+  path: string;
+  hash?: string; // ไม่ใส่ = ไม่มี hash
+};
+
+const menuItems: RailItem[] = [
+  { icon: BarChart3, label: "สรุปภาพรวมประจำเดือน", tooltip: "สรุปภาพรวมประจำเดือน", path: "/dashboard" },
+  { icon: MapPin, label: "ผลการดำเนินงานรายพื้นที่", tooltip: "ผลการดำเนินงานรายพื้นที่", path: "/regional" },
+  { icon: MessageSquareText, label: "ข้อคิดเห็นของลูกค้า", tooltip: "ข้อคิดเห็นของลูกค้า", path: "/customer-feedback" },
+  { icon: AlertTriangle, label: "ข้อร้องเรียนของลูกค้า", tooltip: "ข้อร้องเรียนของลูกค้า", path: "/strong-complaints" },
+  { icon: Briefcase, label: "Market Conduct", tooltip: "Market Conduct", path: "/market-conduct" },
+  { icon: Bot, label: "AI Chat ช่วยวิเคราะห์", tooltip: "AI Chat ช่วยวิเคราะห์", path: "/ai-chatbot" },
+  { icon: FileText, label: "เอกสารอ้างอิง", tooltip: "เอกสารอ้างอิง", path: "/dashboard", hash: "docs" },
 ];
 
-export const MiniRailSidebar = ({ 
-  activeMenu, 
-  onMenuSelect, 
+export const MiniRailSidebar = ({
+  activeMenu,
   onToggleMainSidebar,
-  className = ""
+  onMenuSelect,
+  className = "",
 }: MiniRailSidebarProps) => {
-  const handleMenuToggle = () => {
-    onToggleMainSidebar?.();
+  const location = useLocation();
+
+  // ให้ active ตรงตาม path + hash และถ้ามี activeMenu ให้ชนะแมตช์ปกติ
+  const isItemActive = (item: RailItem) => {
+    if (activeMenu && item.label === activeMenu) return true;
+
+    const pathMatch = location.pathname === item.path;
+    if (!pathMatch) return false;
+
+    const currentHash = location.hash || ""; // "#ai" | "" | undefined
+    if (item.hash) return currentHash === `#${item.hash}`;
+    // ไม่มี hash ⇒ active เฉพาะตอนที่ hash ปัจจุบันว่าง
+    return currentHash === "";
   };
 
   return (
     <TooltipProvider>
-      <div 
-        className={`mini-rail hidden md:flex flex-col items-center ${className}`}
-      >
-        
-        {/* Hamburger Menu Button */}
+      <div className={`mini-rail hidden md:flex flex-col items-center ${className}`}>
+        {/* Hamburger */}
         <div className="pt-3 pb-3">
           <Button
-            onClick={handleMenuToggle}
-            className="w-10 h-10 rounded-[14px] border border-[#E5E7EB] bg-[#F9FAFB] transition-all duration-200 ease-out"
-            style={{
-              color: '#6B7280'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#FFF1F7';
-              e.currentTarget.style.color = '#CE5997';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#F9FAFB';
-              e.currentTarget.style.color = '#6B7280';
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.outline = '2px solid #DF7AB0';
-              e.currentTarget.style.outlineOffset = '2px';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.outline = 'none';
-            }}
+            onClick={onToggleMainSidebar}
             aria-label="เปิดเมนู"
+            className="
+              w-10 h-10 rounded-[14px] border border-[#E5E7EB] bg-[#F9FAFB]
+              text-[#6B7280]
+              transition-all duration-200 ease-out
+              hover:bg-[#FFF1F7] hover:text-[#CE5997]
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#DF7AB0] focus-visible:outline-offset-2
+            "
           >
-            <Menu 
-              className="h-5 w-5" 
-              strokeWidth={2}
-            />
+            <Menu className="h-5 w-5" strokeWidth={2} />
           </Button>
         </div>
 
-        {/* Menu Icons */}
+        {/* Nav icons */}
         <div className="flex flex-col space-y-3 pb-3">
-          {menuItems.map((item, index) => {
+          {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeMenu === item.label;
-            
+            const active = isItemActive(item);
+
+            // ใช้ object ใน NavLink เพื่อให้ hash แยกจาก path ชัดเจน
+            const to = item.hash
+              ? { pathname: item.path, hash: `#${item.hash}` }
+              : { pathname: item.path };
+
             return (
-              <Tooltip key={index} delayDuration={300}>
+              <Tooltip key={item.label} delayDuration={300}>
                 <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => onMenuSelect(item.label)}
-                    className={`w-11 h-11 rounded-[14px] border transition-all duration-200 ease-out ${
-                      isActive 
-                        ? 'border-[#F5A3C5]' 
-                        : 'bg-transparent border-transparent hover:border-[#F7B4D1]'
-                    }`}
-                    style={{
-                      background: isActive 
-                        ? 'linear-gradient(180deg, #FFD6EB 0%, #FFEAF4 100%)'
-                        : 'transparent',
-                      boxShadow: isActive 
-                        ? '0 4px 12px rgba(216, 33, 140, 0.22)'
-                        : 'none',
-                      color: isActive ? '#D8218C' : '#6B7280'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = '#FFF1F7';
-                        e.currentTarget.style.color = '#CE5997';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#6B7280';
-                      }
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.outline = '2px solid #DF7AB0';
-                      e.currentTarget.style.outlineOffset = '2px';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.outline = 'none';
-                    }}
-                    aria-label={item.tooltip}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    <Icon 
-                      className="h-5 w-5" 
-                      strokeWidth={2}
-                    />
-                  </Button>
+                  <NavLink to={to as any} aria-label={item.tooltip} aria-current={active ? "page" : undefined}>
+                    <Button
+                      onClick={() => onMenuSelect?.(item.label)}
+                      aria-current={active ? "page" : undefined}
+                      data-active={active ? "true" : "false"}
+                      className={`
+                        w-11 h-11 rounded-[14px] border transition-all duration-200 ease-out
+                        ${active
+                          ? "border-[#F5A3C5] text-[#D8218C] shadow-[0_4px_12px_rgba(216,33,140,.22)] bg-[linear-gradient(180deg,#FFD6EB_0%,#FFEAF4_100%)]"
+                          : "bg-transparent border-transparent text-[#6B7280] hover:bg-[#FFF1F7] hover:text-[#CE5997] hover:border-[#F7B4D1]"}
+                        focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#DF7AB0] focus-visible:outline-offset-2
+                      `}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={2} />
+                    </Button>
+                  </NavLink>
                 </TooltipTrigger>
-                <TooltipContent 
-                  side="right" 
-                  className="bg-black/80 border-0 text-white shadow-lg rounded-md"
-                  sideOffset={8}
-                >
+                <TooltipContent side="right" className="bg-black/80 border-0 text-white shadow-lg rounded-md" sideOffset={8}>
                   <p className="font-kanit text-sm">{item.tooltip}</p>
                 </TooltipContent>
               </Tooltip>
