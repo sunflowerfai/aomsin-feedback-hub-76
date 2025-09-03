@@ -14,6 +14,15 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLocation } from "react-router-dom";
 import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { FileText, Info, Trash2 } from "lucide-react";
+
 
 /* ===== Icons ===== */
 import {
@@ -26,6 +35,8 @@ import {
   Calendar as CalendarIcon,
   Check,
   RefreshCw,
+  Filter, 
+  ChevronUp,
 } from "lucide-react";
 
 /* ===== Layout (same as Dashboard) ===== */
@@ -341,9 +352,8 @@ const ServiceAreaCard: React.FC = () => {
   );
 };
 
-/* ---------- OpinionCard ---------- */
-const mainCategories = [
-  "เลือกทั้งหมด",
+/* ---------- Category mapping (main ↔ sub) ---------- */
+const MAIN_CATEGORY_LIST = [
   "Market Conduct",
   "กระบวนการให้บริการ",
   "ความประทับใจอื่นๆ",
@@ -351,65 +361,130 @@ const mainCategories = [
   "พนักงานและบุคลากร",
   "ระบบธนาคารและเทคโนโลยี",
   "สภาพแวดล้อมและสิ่งอำนวยความสะดวก",
-];
-const subCategories = [
-  "เลือกทั้งหมด",
-  "การบังคับ",
-  "การรบกวน",
-  "การหลอกลวง",
-  "การเอาเปรียบ",
-  "ขั้นตอนการให้บริการ",
-  "ความพร้อมในการให้บริการ",
-  "ภาระเอกสาร",
-  "อื่นๆ",
-  "เกณฑ์การอนุมัติ",
-  "ความเรียบง่ายข้อมูล",
-  "ระยะเวลาอนุมัติ",
-  "รายละเอียดผลิตภัณฑ์",
-  "การจัดการและแก้ไขปัญหาเฉพาะหน้า",
-  "ความถูกต้องในการให้บริการ",
-  "ความประทับใจในการให้บริการ",
-  "ความรวดเร็วในการให้บริการ",
-  "ความสามารถในการตอบคำถามหรือให้คำแนะนำ",
-  "ความสุภาพและมารยาทของพนักงาน",
-  "ความเอาใจใส่ในการให้บริการลูกค้า",
-  "รปภ. แม่บ้าน ฯลฯ",
-  "ATM ADM CDM",
-  "เครื่องนับเงิน",
-  "เครื่องปรับสมุด",
-  "เครื่องออกบัตรคิว",
-  "ระบบ Core ของธนาคาร",
-  "ระบบยืนยันตัวตน",
-  "แอปพลิเคชั่น MyMo",
-  "ความสะอาด",
-  "ทำเลพื้นที่และความคับคั่ง",
-  "ที่จอดรถ",
-  "ที่นั่งรอ",
-  "ป้าย-สื่อประชาสัมพันธ์",
-  "สิ่งอำนวยความสะดวกอื่นๆ",
-  "เสียง",
-  "แสงสว่าง",
-  "ห้องน้ำ",
-  "อุณหภูมิ",
-];
+] as const;
 
-const OpinionCard: React.FC = () => {
-  const [selectedMainCategories, setSelectedMainCategories] = useState<string[]>([]);
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+const CATEGORY_MAP: Record<(typeof MAIN_CATEGORY_LIST)[number], string[]> = {
+  "Market Conduct": ["การบังคับ", "การรบกวน", "การหลอกลวง", "การเอาเปรียบ"],
+  "กระบวนการให้บริการ": ["ขั้นตอนการให้บริการ", "ความพร้อมในการให้บริการ", "ภาระเอกสาร"],
+  "ความประทับใจอื่นๆ": ["อื่นๆ"],
+  "เงื่อนไขผลิตภัณฑ์": ["เกณฑ์การอนุมัติ", "ความเรียบง่ายข้อมูล", "ระยะเวลาอนุมัติ", "รายละเอียดผลิตภัณฑ์"],
+  "พนักงานและบุคลากร": [
+    "การจัดการและแก้ไขปัญหาเฉพาะหน้า",
+    "ความถูกต้องในการให้บริการ",
+    "ความประทับใจในการให้บริการ",
+    "ความรวดเร็วในการให้บริการ",
+    "ความสามารถในการตอบคำถามหรือให้คำแนะนำ",
+    "ความสุภาพและมารยาทของพนักงาน",
+    "ความเอาใจใส่ในการให้บริการลูกค้า",
+    "รปภ. แม่บ้าน ฯลฯ",
+  ],
+  "ระบบธนาคารและเทคโนโลยี": [
+    "ATM ADM CDM",
+    "เครื่องนับเงิน",
+    "เครื่องปรับสมุด",
+    "เครื่องออกบัตรคิว",
+    "ระบบ Core ของธนาคาร",
+    "ระบบยืนยันตัวตน",
+    "แอปพลิเคชั่น MyMo",
+  ],
+  "สภาพแวดล้อมและสิ่งอำนวยความสะดวก": [
+    "ความสะอาด",
+    "ทำเลพื้นที่และความคับคั่ง",
+    "ที่จอดรถ",
+    "ที่นั่งรอ",
+    "ป้าย-สื่อประชาสัมพันธ์",
+    "สิ่งอำนวยความสะดวกอื่นๆ",
+    "เสียง",
+    "แสงสว่าง",
+    "ห้องน้ำ",
+    "อุณหภูมิ",
+  ],
+};
+
+/* ใช้สำหรับคอมโพเนนต์เก่า (FilterCards) และ MultiSelect */
+const mainCategories = ["เลือกทั้งหมด", ...MAIN_CATEGORY_LIST];
+const ALL_SUBCATS: string[] = Object.values(CATEGORY_MAP).flat();
+const subCategories = ["เลือกทั้งหมด", ...ALL_SUBCATS];
+
+
+/* ---------- OpinionCard (controlled) ---------- */
+const OpinionCard: React.FC<{
+  selectedMainCategories: string[];
+  setSelectedMainCategories: (v: string[]) => void;
+  selectedSubCategories: string[];
+  setSelectedSubCategories: (v: string[]) => void;
+}> = ({
+  selectedMainCategories,
+  setSelectedMainCategories,
+  selectedSubCategories,
+  setSelectedSubCategories,
+}) => {
+  // สร้างชุด "หมวดย่อยที่อนุญาต" ตาม main ที่เลือก
+  const allowedSubs = useMemo(() => {
+    if (!selectedMainCategories.length) return ALL_SUBCATS;
+    const union = Array.from(
+      new Set(
+        selectedMainCategories.flatMap((m) =>
+          CATEGORY_MAP[m as keyof typeof CATEGORY_MAP] ?? []
+        )
+      )
+    );
+    return union;
+  }, [selectedMainCategories]);
+
+  // ถ้าเปลี่ยน main แล้วมี sub ที่ไม่อยู่ใน allowed → ตัดทิ้งอัตโนมัติ
+  useEffect(() => {
+    if (!selectedSubCategories.length) return;
+    const pruned = selectedSubCategories.filter((s) => allowedSubs.includes(s));
+    if (pruned.length !== selectedSubCategories.length) {
+      setSelectedSubCategories(pruned);
+    }
+  }, [allowedSubs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ตัวช่วยเลือกทั้งหมด
+  const withSelectAll = (items: string[]) => ["เลือกทั้งหมด", ...items];
+
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ความคิดเห็น</CardTitle>
-          <Button variant="ghost" size="icon" onClick={() => { setSelectedMainCategories([]); setSelectedSubCategories([]); }} className="h-8 w-8 rounded-xl hover:bg-gray-100">
+          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">
+            ความคิดเห็น
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setSelectedMainCategories([]);
+              setSelectedSubCategories([]);
+            }}
+            className="h-8 w-8 rounded-xl hover:bg-gray-100"
+          >
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <MultiSelect label="หมวดหมู่" options={mainCategories} selectedItems={selectedMainCategories} onSelectionChange={setSelectedMainCategories} />
-        <MultiSelect label="หมวดย่อย" options={subCategories} selectedItems={selectedSubCategories} onSelectionChange={setSelectedSubCategories} />
-        <p className="text-xs text-gray-500 font-kanit mt-4">เลือกแล้ว: {selectedMainCategories.length} หมวดหมู่, {selectedSubCategories.length} หมวดย่อย</p>
+        {/* หมวดหมู่หลัก */}
+        <MultiSelect
+          label="หมวดหมู่"
+          options={withSelectAll(MAIN_CATEGORY_LIST as unknown as string[])}
+          selectedItems={selectedMainCategories}
+          onSelectionChange={setSelectedMainCategories}
+        />
+
+        {/* หมวดย่อยตาม main */}
+        <MultiSelect
+          label="หมวดย่อย"
+          options={withSelectAll(allowedSubs)}
+          selectedItems={selectedSubCategories}
+          onSelectionChange={setSelectedSubCategories}
+        />
+
+        <p className="text-xs text-gray-500 font-kanit mt-4">
+          เลือกแล้ว: {selectedMainCategories.length} หมวดหมู่,{" "}
+          {selectedSubCategories.length} หมวดย่อย
+        </p>
       </CardContent>
     </Card>
   );
@@ -562,171 +637,806 @@ const RegionalFeedbackChart: React.FC = () => {
   );
 };
 
-/* ---------- FeedbackChartsCard ---------- */
+/* ---------- FeedbackChartsCard (with sortable + filterable issues) ---------- */
 const donutData = [
   { name: "เชิงบวก", value: 247, percentage: 72.3, color: "#20A161" },
   { name: "เชิงลบ", value: 95, percentage: 27.7, color: "#D14343" },
 ];
-const issuesData = [
-  { label: "ความรวดเร็วในการให้บริการ", positive: 345, negative: 123 },
-  { label: "ระยะเวลารอคอย", positive: 298, negative: 156 },
-  { label: "การปรับปรุงระบบ", positive: 267, negative: 89 },
-  { label: "ความสะอาดของระบบออนไลน์", positive: 234, negative: 67 },
-  { label: "ทักษะและความรู้ของเจ้าหน้าที่", positive: 198, negative: 134 },
-];
 
-const FeedbackChartsCard: React.FC = () => {
-  const maxPositive = Math.max(...issuesData.map((i) => i.positive));
-  const maxNegative = Math.max(...issuesData.map((i) => i.negative));
+// สร้าง mock ของทุก subcategory ให้คงที่ตาม index ( deterministic )
+const ISSUE_BASE: { label: string; positive: number; negative: number }[] = ALL_SUBCATS.map(
+  (label, i) => ({
+    label,
+    positive: 120 + ((i * 17) % 180),
+    negative: 40 + ((i * 13) % 120),
+  })
+);
+
+const FeedbackChartsCard: React.FC<{
+  selectedMainCategories: string[];
+  selectedSubCategories: string[];
+  setSelectedSubCategories: (v: string[]) => void;
+}> = ({ selectedMainCategories, selectedSubCategories, setSelectedSubCategories }) => {
+  // ชุด sub ที่แสดงในกราฟ (ตาม main ที่เลือก)
+  const allowedSubs = useMemo(() => {
+    if (!selectedMainCategories.length) return ALL_SUBCATS;
+    return Array.from(
+      new Set(
+        selectedMainCategories.flatMap((m) =>
+          CATEGORY_MAP[m as keyof typeof CATEGORY_MAP] ?? []
+        )
+      )
+    );
+  }, [selectedMainCategories]);
+
+  // ถ้าไม่เลือก sub เลย → ถือว่าเลือกทั้งหมดใน allowed
+  const activeSubs = useMemo(() => {
+    return (selectedSubCategories.length ? selectedSubCategories : allowedSubs).filter(
+      (s) => allowedSubs.includes(s)
+    );
+  }, [selectedSubCategories, allowedSubs]);
+
+  // กรองข้อมูลของกราฟตาม activeSubs
+  const filteredIssues = useMemo(
+    () => ISSUE_BASE.filter((it) => activeSubs.includes(it.label)),
+    [activeSubs]
+  );
+
+  // การเรียง: แยกซ้าย/ขวา (negative/positive) พร้อมทิศทางของแต่ละฝั่ง
+  const [sortBy, setSortBy] = useState<"negative" | "positive">("positive");
+  const [dir, setDir] = useState<{ positive: "asc" | "desc"; negative: "asc" | "desc" }>({
+    positive: "desc",
+    negative: "desc",
+  });
+
+  const sortedIssues = useMemo(() => {
+    const key = sortBy;
+    const direction = dir[key] === "asc" ? 1 : -1;
+    const arr = [...filteredIssues].sort((a, b) => {
+      const diff = (a[key] - b[key]) * direction;
+      return diff !== 0 ? diff : a.label.localeCompare(b.label, "th");
+    });
+    return arr;
+  }, [filteredIssues, sortBy, dir]);
+
+  const maxPositive = Math.max(1, ...sortedIssues.map((i) => i.positive));
+  const maxNegative = Math.max(1, ...sortedIssues.map((i) => i.negative));
+
+  // ฟังก์ชันเลือก/ยกเลิกทั้งหมดใน popover filter
+  const toggleAllSubs = (checkAll: boolean) => {
+    setSelectedSubCategories(checkAll ? [...allowedSubs] : []);
+  };
+
+  const isAllChecked = selectedSubCategories.length && selectedSubCategories.length === allowedSubs.length;
+
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
-        <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
-            <CardHeader className="pb-4">
-                <div>
-                <CardTitle className="font-kanit text-xl font-bold text-foreground">ข้อคิดเห็น/ข้อเสนอแนะ</CardTitle>
+      <div
+        className="h-2 w-full rounded-t-2xl"
+        style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }}
+      />
+      <CardHeader className="pb-4">
+        <div>
+          <CardTitle className="font-kanit text-xl font-bold text-foreground">
+            ข้อคิดเห็น/ข้อเสนอแนะ
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Donut (เดิม) */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
+              การแบ่งแยกความคิดเห็น
+            </h3>
+            <div className="h-[120px] mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={32} outerRadius={50} paddingAngle={2} dataKey="value" stroke="#fff" strokeWidth={3}>
+                    {donutData.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 mb-3">
+              {donutData.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="font-kanit text-xs text-gray-600">{item.name}</span>
                 </div>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
-                    {/* Donut */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                        <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">การแบ่งแยกความคิดเห็น</h3>
-                        <div className="h-[120px] mb-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                            <Pie data={donutData} cx="50%" cy="50%" innerRadius={32} outerRadius={50} paddingAngle={2} dataKey="value" stroke="#fff" strokeWidth={3}>
-                                {donutData.map((entry, idx) => (
-                                <Cell key={`cell-${idx}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            </PieChart>
-                        </ResponsiveContainer>
-                        </div>
-                        <div className="flex justify-center gap-4 mb-3">
-                        {donutData.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span className="font-kanit text-xs text-gray-600">{item.name}</span>
-                            </div>
-                        ))}
-                        </div>
-                        <div className="flex justify-between text-xs font-kanit">
-                        <span style={{ color: "#20A161" }}>72.3% (จาก 247 ความคิดเห็น)</span>
-                        <span style={{ color: "#D14343" }}>27.7% (จาก 95 ความคิดเห็น)</span>
-                        </div>
-                    </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-xs font-kanit">
+              <span style={{ color: "#20A161" }}>72.3% (จาก 247 ความคิดเห็น)</span>
+              <span style={{ color: "#D14343" }}>27.7% (จาก 95 ความคิดเห็น)</span>
+            </div>
+          </div>
 
-                    {/* Butterfly chart */}
-                    <div className="border border-gray-200 rounded-lg p-4">
-                        <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">ประเด็นที่ถูกกล่าวถึง</h3>
-                        <div className="space-y-3">
-                        {issuesData.map((item, index) => {
-                            const negativeWidth = (item.negative / maxNegative) * 100;
-                            const positiveWidth = (item.positive / maxPositive) * 100;
-                            return (
-                            <div key={index} className="grid grid-cols-[1fr_auto_1fr] gap-6 items-center text-xs">
-                                <div className="flex justify-end">
-                                <div className="bg-gray-100 h-4 rounded-sm relative w-full">
-                                    <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
-                                    <div className="absolute right-3 top-0 h-4 bg-red-500 rounded-r-sm flex items-center justify-center text-white font-kanit text-xs" style={{ width: `${negativeWidth}%` }}>
-                                    {item.negative}
-                                    </div>
-                                </div>
-                                </div>
-                                <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2">{item.label}</div>
-                                <div className="flex justify-start">
-                                <div className="bg-gray-100 h-4 rounded-sm relative w-full">
-                                    <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
-                                    <div className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-l-sm flex items-center justify-center text-white font-kanit text-xs" style={{ width: `${positiveWidth}%` }}>
-                                    {item.positive}
-                                    </div>
-                                </div>
-                                </div>
-                            </div>
-                            );
-                        })}
-                        </div>
+          {/* ===== Butterfly chart (เพิ่ม sort + filter) ===== */}
+          <div className="border border-gray-200 rounded-lg p-4 overflow-x-hidden relative">
+            {/* Control bar (absolute ไม่ดัน layout) */}
+            <div className="absolute right-4 top-4 flex items-center gap-1">
+              {/* Sort by negative (ซ้าย) */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                onClick={() => {
+                  setSortBy("negative");
+                  setDir((p) => ({ ...p, negative: p.negative === "asc" ? "desc" : "asc" }));
+                }}
+                aria-label="เรียงฝั่งเชิงลบ"
+                title="เรียงฝั่งเชิงลบ"
+              >
+                {dir.negative === "asc"
+                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />
+                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />}
+              </Button>
+
+              {/* Sort by positive (ขวา) */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                onClick={() => {
+                  setSortBy("positive");
+                  setDir((p) => ({ ...p, positive: p.positive === "asc" ? "desc" : "asc" }));
+                }}
+                aria-label="เรียงฝั่งเชิงบวก"
+                title="เรียงฝั่งเชิงบวก"
+              >
+                {dir.positive === "asc"
+                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />
+                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />}
+              </Button>
+
+              {/* Filter by subcategory */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-gray-100" aria-label="กรองหมวดย่อย" title="กรองหมวดย่อย">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0 border-[#e5e7eb] rounded-xl" align="end">
+                  <div className="p-3 border-b">
+                    <div className="text-sm font-kanit">กรองหมวดย่อย ({allowedSubs.length})</div>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    <div className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                      <Checkbox
+                        id="sub-all"
+                        checked={isAllChecked}
+                        onCheckedChange={(checked) => toggleAllSubs(!!checked)}
+                      />
+                      <label htmlFor="sub-all" className="text-sm font-kanit cursor-pointer flex-1">
+                        เลือกทั้งหมด
+                      </label>
                     </div>
-                </div>
-                <div className="mt-8">
-                    <RegionalFeedbackChart />
-                </div>
-            </CardContent>
+                    {allowedSubs.map((s) => {
+                      const checked = selectedSubCategories.includes(s) || (!selectedSubCategories.length && allowedSubs.includes(s));
+                      return (
+                        <div key={s} className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                          <Checkbox
+                            id={`sub-${s}`}
+                            checked={checked}
+                            onCheckedChange={(ck) => {
+                              if (ck) setSelectedSubCategories([...new Set([...selectedSubCategories, s])]);
+                              else setSelectedSubCategories(selectedSubCategories.filter((x) => x !== s));
+                            }}
+                          />
+                          <label htmlFor={`sub-${s}`} className="text-sm font-kanit cursor-pointer flex-1">
+                            {s}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
+              ประเด็นที่ถูกกล่าวถึง
+            </h3>
+
+            {/* เนื้อกราฟ */}
+            <div className="relative w-full max-w-full px-2">
+              <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l border-dotted border-gray-300" />
+              <div className="space-y-3">
+                {sortedIssues.map((item, index) => {
+                  const negativeWidth = (item.negative / maxNegative) * 100;
+                  const positiveWidth = (item.positive / maxPositive) * 100;
+                  return (
+                    <div
+                      key={`${item.label}-${index}`}
+                      className="grid grid-cols-[minmax(0,1fr)_clamp(120px,18vw,180px)_minmax(0,1fr)] gap-4 items-center text-xs"
+                    >
+                      {/* ซ้าย: เชิงลบ */}
+                      <div className="flex justify-end">
+                        <div className="bg-gray-100 h-4 rounded-sm relative w-full">
+                          <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
+                          <div
+                            className="absolute right-3 top-0 h-4 bg-red-500 rounded-r-sm flex items-center justify-center text-white font-kanit text-xs"
+                            style={{ width: `${negativeWidth}%` }}
+                          >
+                            {item.negative}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* label กลาง */}
+                      <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2 truncate">
+                        {item.label}
+                      </div>
+
+                      {/* ขวา: เชิงบวก */}
+                      <div className="flex justify-start">
+                        <div className="bg-gray-100 h-4 rounded-sm relative w-full">
+                          <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
+                          <div
+                            className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-l-sm flex items-center justify-center text-white font-kanit text-xs"
+                            style={{ width: `${positiveWidth}%` }}
+                          >
+                            {item.positive}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {sortedIssues.length === 0 && (
+                  <div className="text-center text-sm text-gray-500 font-kanit py-8">
+                    ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <RegionalFeedbackChart />
+        </div>
+      </CardContent>
     </Card>
+  );
+};
+
+// ========== ReportDetailDialog (รายละเอียดรายงาน) ==========
+type ReportDetail = {
+  user_id?: string | null;
+  branch?: string; province?: string;
+  scores?: { label: string; value: string }[];
+  opinion?: string;
+  main_category?: string;
+  sub_category?: string;
+  sentiment?: "positive" | "negative" | "neutral";
+  created_at?: string;
+  meta?: string; // แสดงบรรทัดบนสีเขียวเหมือนรูป
+};
+const ReportDetailDialog: React.FC<{
+  open: boolean; onOpenChange: (v: boolean) => void; data: ReportDetail | null;
+}> = ({ open, onOpenChange, data }) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl p-0">
+        <div className="p-5">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
+          </DialogHeader>
+
+          {/* แถบหัวเหมือนรูป */}
+          {data?.opinion && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
+              <div className="text-sm text-emerald-700 font-kanit">{data.meta || ""}</div>
+              <div className="text-gray-800 font-kanit">{data.opinion}</div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-2 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
+              <div>ฟิลด์</div><div>ค่า</div>
+            </div>
+
+            <div className="divide-y">
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">user_id</div><div className="font-kanit">{data?.user_id || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">branch</div><div className="font-kanit">{data?.branch || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">province</div><div className="font-kanit">{data?.province || "-"}</div></div>
+
+              {/* คะแนน 0/5 ตามรูป */}
+              {data?.scores?.map((s, i) => (
+                <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">{s.label}</div>
+                  <div className="font-kanit">{s.value}</div>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ความคิดเห็น</div><div className="font-kanit">{data?.opinion || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">main_category</div><div className="font-kanit">{data?.main_category || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sub_category</div><div className="font-kanit">{data?.sub_category || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sentiment</div>
+                <div className="font-kanit">{data?.sentiment || "-"}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ไม่ทำปุ่มปิด ตามที่สั่ง */}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ========== OpinionDetailDialog (รายละเอียดความเห็น) ==========
+type OpinionRow = {
+  text: string;
+  main: string;
+  sub: string;
+  sentiment: "positive" | "negative";
+};
+const OpinionDetailDialog: React.FC<{
+  open: boolean; onOpenChange: (v: boolean) => void;
+  titleMeta?: string; opinionText?: string;
+  rows: OpinionRow[]; onRowsChange: (r: OpinionRow[]) => void;
+}> = ({ open, onOpenChange, titleMeta, opinionText, rows, onRowsChange }) => {
+  const [history, setHistory] = useState<OpinionRow[][]>([]);
+  const addRow = () => {
+    const newRows = [...rows, { text: "", main: "", sub: "", sentiment: "positive" }];
+    setHistory((h) => [...h, rows]); // เก็บประวัติก่อนแก้
+    onRowsChange(newRows);
+  };
+  const editCell = (i: number, k: keyof OpinionRow, v: string) => {
+    const copy = [...rows];
+    (copy[i] as any)[k] = v;
+    onRowsChange(copy);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl p-0">
+        <div className="p-5">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="font-kanit text-lg">รายละเอียดความคิดเห็น</DialogTitle>
+          </DialogHeader>
+
+          {/* แถบหัวสีเขียวเหมือนรูป */}
+          {opinionText && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
+              <div className="text-sm text-emerald-700 font-kanit">{titleMeta || ""}</div>
+              <div className="text-gray-800 font-kanit">{opinionText}</div>
+            </div>
+          )}
+
+          {/* ตารางแยกประโยค/หมวด/หมวดย่อย/Sentiment (ตัวอักษร) */}
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-4 bg-gray-50 px-3 py-2 text-sm font-kanit text-gray-600">
+              <div>ประโยค</div><div>หมวดใหญ่</div><div>หมวดย่อย</div><div>Sentiment</div>
+            </div>
+            <div className="divide-y">
+              {rows.map((r, i) => (
+                <div key={i} className="grid grid-cols-4 gap-2 px-3 py-2 text-sm">
+                  <Input value={r.text} onChange={(e) => editCell(i, "text", e.target.value)} className="h-8" />
+                  <Input value={r.main} onChange={(e) => editCell(i, "main", e.target.value)} className="h-8" />
+                  <Input value={r.sub} onChange={(e) => editCell(i, "sub", e.target.value)} className="h-8" />
+                  <Select value={r.sentiment} onValueChange={(v) => editCell(i, "sentiment", v)}>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="positive" className="font-kanit">positive</SelectItem>
+                      <SelectItem value="negative" className="font-kanit">negative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+              {rows.length === 0 && (
+                <div className="px-3 py-6 text-center text-sm text-gray-500 font-kanit">ยังไม่มีรายการ</div>
+              )}
+            </div>
+          </div>
+
+          {/* ปุ่ม “เพิ่ม” และ “ประวัติ” */}
+          <div className="mt-3 flex items-center gap-2">
+            <Button onClick={addRow} className="rounded-xl h-8 px-3">เพิ่ม</Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="rounded-xl h-8 px-3">ประวัติแก้ไข</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="text-sm font-kanit text-gray-700 mb-2">ประวัติ ({history.length})</div>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {history.map((snap, idx) => (
+                    <div key={idx} className="rounded border p-2">
+                      <div className="text-xs text-gray-500 font-kanit mb-1">เวอร์ชัน {idx + 1}</div>
+                      {snap.map((s, i) => (
+                        <div key={i} className="text-xs text-gray-700 font-kanit">• {s.text} — {s.main}/{s.sub} — {s.sentiment}</div>
+                      ))}
+                    </div>
+                  ))}
+                  {history.length === 0 && <div className="text-xs text-gray-500 font-kanit">ยังไม่มีประวัติ</div>}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* ไม่ทำปุ่มปิด */}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
 /* ---------- CustomerOpinionsCard ---------- */
 const mockComments = [
-  { id: "1", meta: "ภาค16 • เขต กะทู้ • ป่าตอง", time: "10 มิ.ย. 2025 09:14", text: "พนักงานเป็นกันเอง", sentiment: "positive" as const, tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }] },
-  { id: "2", meta: "ภาค3 • เขต บางกอกใหญ่ • ท่าพระ", time: "27 พ.ค. 2025 14:13", text: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม", sentiment: "positive" as const, tags: [
+  {
+    id: "1",
+    meta: "ภาค16 • เขต กะทู้ • ป่าตอง",
+    time: "10 มิ.ย. 2025 09:14",
+    text: "พนักงานเป็นกันเอง",
+    sentiment: "positive" as const,
+    tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }],
+    report: {
+      user_id: "-",
+      branch: "ป่าตอง", province: "ภูเก็ต",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "พนักงานเป็นกันเอง",
+      main_category: "บริการดีเยี่ยม",
+      sub_category: "-",
+      sentiment: "positive",
+      meta: "กรุงเทพฯ • เขต 1 • สาขาสลิม",
+    },
+    detailRows: [
+      { text: "พนักงานเป็นกันเอง", main: "บริการ", sub: "ความเอาใจใส่", sentiment: "positive" as const },
+    ],
+  },
+  {
+    id: "2",
+    meta: "ภาค3 • เขต บางกอกใหญ่ • ท่าพระ",
+    time: "27 พ.ค. 2025 14:13",
+    text: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม",
+    sentiment: "positive" as const,
+    tags: [
       { label: "ความสามารถในการตอบคำถามหรือให้คำแนะนำ", tone: "positive" as const },
       { label: "ความรวดเร็วในการให้บริการ", tone: "positive" as const },
       { label: "ความสุภาพและมารยาทของพนักงาน", tone: "positive" as const },
-    ] },
-  { id: "3", meta: "ภาค16 • เขต หลังสวน • หลังสวน", time: "06 พ.ค. 2025 14:35", text: "บริการดีค่ะ", sentiment: "positive" as const, tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }] },
-  { id: "4", meta: "ภาค16 • เขต กำแพงเพชร • กำแพงเพชร", time: "29 เม.ย. 2025 10:07", text: "ถ้าไม่มีมาติดต่อธนาคารจะไม่ทราบเลยว่ามาสุภาษาลูกค้า… ขอบคุณพนักงาน", sentiment: "mixed" as const, tags: [
-      { label: "ความถูกต้องในการให้บริการ", tone: "negative" as const },
-      { label: "ความประทับใจในการให้บริการ", tone: "positive" as const },
-    ] },
-  { id: "5", meta: "ภาค1 • เขต จตุจักร • เซ็นทรัล ลาดพร้าว", time: "12 ม.ค. 2025 14:32", text: "คนใช้บริการวันเสาร์อาทิตย์ค่อนข้างเยอะ จัดระบบรับคิว", sentiment: "negative" as const, tags: [{ label: "ขั้นตอนการให้บริการ", tone: "negative" as const }] },
+    ],
+    report: {
+      user_id: "-",
+      branch: "ท่าพระ", province: "กรุงเทพฯ",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม",
+      main_category: "บริการดีเยี่ยม",
+      sub_category: "-",
+      sentiment: "positive",
+      meta: "กรุงเทพฯ • เขต 1 • สาขาสลิม",
+    },
+    detailRows: [
+      { text: "แนะนำดี", main: "บริการ", sub: "ให้คำแนะนำ", sentiment: "positive" as const },
+      { text: "รวดเร็ว", main: "บริการ", sub: "ความรวดเร็ว", sentiment: "positive" as const },
+      { text: "ยิ้มแย้ม", main: "พนักงาน", sub: "มารยาท", sentiment: "positive" as const },
+    ],
+  },
+  {
+    id: "3",
+    meta: "ภาค16 • เขต หลังสวน • หลังสวน",
+    time: "06 พ.ค. 2025 14:35",
+    text: "บริการดีค่ะ",
+    sentiment: "positive" as const,
+    tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }],
+    report: {
+      user_id: "-",
+      branch: "หลังสวน", province: "ชุมพร",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "บริการดีค่ะ",
+      main_category: "บริการดีเยี่ยม",
+      sub_category: "-",
+      sentiment: "positive",
+      meta: "ชุมพร • เขต หลังสวน • สาขาหลังสวน",
+    },
+    detailRows: [
+      { text: "บริการดีค่ะ", main: "บริการ", sub: "ความประทับใจในการให้บริการ", sentiment: "positive" as const },
+    ],
+  },
+  {
+    id: "4",
+    meta: "ภาค5 • เขต พิษณุโลก • พิษณุโลก",
+    time: "03 พ.ค. 2025 11:22",
+    text: "ระบบล่ม รอนานมาก พนักงานไม่สามารถแก้ปัญหาได้ ต้องมาใหม่อีกครั้ง เสียเวลาเปล่า บริการแย่มาก",
+    sentiment: "negative" as const,
+    tags: [
+      { label: "ระบบ Core ของธนาคาร", tone: "negative" as const },
+      { label: "การจัดการและแก้ไขปัญหาเฉพาะหน้า", tone: "negative" as const },
+      { label: "ระยะเวลาอนุมัติ", tone: "negative" as const },
+    ],
+    report: {
+      user_id: "-",
+      branch: "พิษณุโลก", province: "พิษณุโลก",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "ระบบล่ม รอนานมาก พนักงานไม่สามารถแก้ปัญหาได้ ต้องมาใหม่อีกครั้ง เสียเวลาเปล่า บริการแย่มาก",
+      main_category: "ระบบธนาคารและเทคโนโลยี",
+      sub_category: "ระบบ Core ของธนาคาร",
+      sentiment: "negative",
+      meta: "พิษณุโลก • เขต 2 • สาขาพิษณุโลก",
+    },
+    detailRows: [
+      { text: "ระบบล่ม", main: "ระบบธนาคารและเทคโนโลยี", sub: "ระบบ Core ของธนาคาร", sentiment: "negative" as const },
+      { text: "รอนานมาก", main: "กระบวนการให้บริการ", sub: "ความพร้อมในการให้บริการ", sentiment: "negative" as const },
+      { text: "แก้ปัญหาไม่ได้", main: "พนักงานและบุคลากร", sub: "การจัดการและแก้ไขปัญหาเฉพาะหน้า", sentiment: "negative" as const },
+    ],
+  },
+  {
+    id: "5",
+    meta: "ภาค12 • เขต ขอนแก่น • ขอนแก่น",
+    time: "02 พ.ค. 2025 16:45",
+    text: "ขั้นตอนการสมัครเยอะ เอกสารเยอะ แต่พนักงานช่วยเหลือดี อธิบายชัดเจน สาขาสะอาด ที่นั่งรอสะดวก",
+    sentiment: "mixed" as const,
+    tags: [
+      { label: "ขั้นตอนการให้บริการ", tone: "negative" as const },
+      { label: "ภาระเอกสาร", tone: "negative" as const },
+      { label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const },
+      { label: "ความสะอาด", tone: "positive" as const },
+      { label: "ที่นั่งรอ", tone: "positive" as const },
+    ],
+    report: {
+      user_id: "-",
+      branch: "ขอนแก่น", province: "ขอนแก่น",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "ขั้นตอนการสมัครเยอะ เอกสารเยอะ แต่พนักงานช่วยเหลือดี อธิบายชัดเจน สาขาสะอาด ที่นั่งรอสะดวก",
+      main_category: "กระบวนการให้บริการ",
+      sub_category: "ขั้นตอนการให้บริการ",
+      sentiment: "negative", // รายงานใช้ค่าเดียว ไม่รองรับ mixed
+      meta: "ขอนแก่น • เขต กลางเมือง • สาขาขอนแก่น",
+    },
+    detailRows: [
+      { text: "ขั้นตอนการสมัครเยอะ", main: "กระบวนการให้บริการ", sub: "ขั้นตอนการให้บริการ", sentiment: "negative" as const },
+      { text: "เอกสารเยอะ", main: "กระบวนการให้บริการ", sub: "ภาระเอกสาร", sentiment: "negative" as const },
+      { text: "พนักงานช่วยเหลือดี", main: "พนักงานและบุคลากร", sub: "ความเอาใจใส่ในการให้บริการลูกค้า", sentiment: "positive" as const },
+      { text: "สาขาสะอาด", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ความสะอาด", sentiment: "positive" as const },
+      { text: "ที่นั่งรอสะดวก", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ที่นั่งรอ", sentiment: "positive" as const },
+    ],
+  },
+  {
+    id: "6",
+    meta: "ภาค14 • เขต ระยอง • ระยอง",
+    time: "21 เม.ย. 2025 15:18",
+    text: "ที่นั่งรอไม่พอ เสียงดังจากพื้นที่รีโนเวท แอร์ไม่ค่อยเย็น",
+    sentiment: "negative" as const,
+    tags: [
+      { label: "ที่นั่งรอ", tone: "negative" as const },
+      { label: "เสียง", tone: "negative" as const },
+      { label: "อุณหภูมิ", tone: "negative" as const },
+    ],
+    report: {
+      user_id: "-",
+      branch: "ระยอง", province: "ระยอง",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "ที่นั่งรอไม่พอ เสียงดังจากพื้นที่รีโนเวท แอร์ไม่ค่อยเย็น",
+      main_category: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก",
+      sub_category: "ที่นั่งรอ",
+      sentiment: "negative",
+      meta: "ระยอง • เขต เมือง • สาขาระยอง",
+    },
+    detailRows: [
+      { text: "ที่นั่งรอไม่พอ", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ที่นั่งรอ", sentiment: "negative" as const },
+      { text: "เสียงดัง", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "เสียง", sentiment: "negative" as const },
+      { text: "แอร์ไม่เย็น", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "อุณหภูมิ", sentiment: "negative" as const },
+    ],
+  },
+  {
+    id: "7",
+    meta: "ภาค1 • เขต จตุจักร • เซ็นทรัล ลาดพร้าว",
+    time: "12 ม.ค. 2025 14:32",
+    text: "สาขาสะอาด จัดคิวไว เจ้าหน้าที่สุภาพ",
+    sentiment: "positive" as const,
+    tags: [
+      { label: "ความสะอาด", tone: "positive" as const },
+      { label: "ความรวดเร็วในการให้บริการ", tone: "positive" as const },
+      { label: "ความสุภาพและมารยาทของพนักงาน", tone: "positive" as const },
+    ],
+    report: {
+      user_id: "-",
+      branch: "เซ็นทรัล ลาดพร้าว", province: "กรุงเทพฯ",
+      scores: [
+        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
+        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
+        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
+        { label: "ความถูกต้อง", value: "0/5" },
+      ],
+      opinion: "สาขาสะอาด จัดคิวไว เจ้าหน้าที่สุภาพ",
+      main_category: "บริการดีเยี่ยม",
+      sub_category: "-",
+      sentiment: "positive",
+      meta: "กรุงเทพฯ • เขต 1 • สาขาเซ็นทรัล ลาดพร้าว",
+    },
+    detailRows: [
+      { text: "สาขาสะอาด", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ความสะอาด", sentiment: "positive" as const },
+      { text: "จัดคิวไว", main: "กระบวนการให้บริการ", sub: "ความพร้อมในการให้บริการ", sentiment: "positive" as const },
+      { text: "เจ้าหน้าที่สุภาพ", main: "พนักงานและบุคลากร", sub: "ความสุภาพและมารยาทของพนักงาน", sentiment: "positive" as const },
+    ],
+  },
 ];
+
 
 type FilterType = "all" | "positive" | "negative";
 const CustomerOpinionsCard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const getFilteredComments = () => {
-    switch (activeFilter) {
-      case "positive":
-        return mockComments.filter((c) => c.sentiment === "positive");
-      case "negative":
-        return mockComments.filter((c) => c.sentiment === "negative");
-      default:
-        return mockComments;
-    }
+
+  // ใช้ state แทน const เพื่อให้ลบได้
+  const [comments, setComments] = useState(() => mockComments);
+
+  // ตัวแปรเปิดโมดัล
+  const [openReportId, setOpenReportId] = useState<string | null>(null);
+  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
+
+  const getFiltered = () => {
+    let base = comments;
+    if (activeFilter === "positive") base = base.filter((c) => c.sentiment === "positive");
+    if (activeFilter === "negative") base = base.filter((c) => c.sentiment === "negative");
+    return base;
   };
-  const filtered = getFilteredComments();
+  const filtered = getFiltered();
+
+  // ลบ (มียืนยัน)
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const doDelete = () => {
+    if (!pendingDelete) return;
+    setComments((prev) => prev.filter((c) => c.id !== pendingDelete));
+    setPendingDelete(null);
+  };
+
+  // หาตัวที่กำลังเปิด
+  const currentReport = comments.find((c) => c.id === openReportId)?.report || null;
+  const currentDetail = comments.find((c) => c.id === openDetailId) || null;
+
+  // ฟังก์ชันอัปเดตแถวใน OpinionDetailDialog
+  const updateDetailRows = (id: string, rows: OpinionRow[]) => {
+    setComments((prev) => prev.map((c) => (c.id === id ? { ...c, detailRows: rows } : c)));
+  };
+
   const bgBySentiment = (s: string) => (s === "positive" ? "bg-emerald-50" : s === "negative" ? "bg-rose-50" : s === "mixed" ? "bg-amber-50" : "bg-gray-50");
   const tagClass = (tone: string) => (tone === "positive" ? "bg-emerald-600 text-white" : tone === "negative" ? "bg-rose-600 text-white" : "bg-gray-600 text-white");
 
   return (
-    <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
-      <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="font-kanit text-xl font-bold text-foreground">ความคิดเห็นลูกค้า</CardTitle>
-          <div className="flex gap-2">
-            <Button onClick={() => setActiveFilter("all")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "all" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>ทั้งหมด</Button>
-            <Button onClick={() => setActiveFilter("positive")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "positive" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงบวก</Button>
-            <Button onClick={() => setActiveFilter("negative")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "negative" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงลบ</Button>
+    <>
+      <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
+        <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)" }} />
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-kanit text-xl font-bold text-foreground">ความคิดเห็นลูกค้า</CardTitle>
+            <div className="flex gap-2">
+              <Button onClick={() => setActiveFilter("all")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "all" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>ทั้งหมด</Button>
+              <Button onClick={() => setActiveFilter("positive")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "positive" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงบวก</Button>
+              <Button onClick={() => setActiveFilter("negative")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "negative" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงลบ</Button>
+            </div>
           </div>
-        </div>
-        <p className="text-sm font-kanit text-gray-500 mt-2">พบความคิดเห็น {filtered.length} รายการ</p>
-      </CardHeader>
-      <CardContent>
-        <div className="max-h-[580px] overflow-y-auto space-y-4">
-          {filtered.map((c) => (
-            <div key={c.id} className={`${bgBySentiment(c.sentiment)} rounded-lg p-4`}>
-              <div className="flex justify-between items-start text-xs text-gray-500 mb-2">
-                <span className="font-kanit">{c.meta}</span>
-                <span className="font-kanit">{c.time}</span>
+          <p className="text-sm font-kanit text-gray-500 mt-2">พบความคิดเห็น {filtered.length} รายการ</p>
+        </CardHeader>
+
+        <CardContent>
+          <div className="max-h-[580px] overflow-y-auto space-y-4">
+            {filtered.map((c) => (
+              <div key={c.id} className={`${bgBySentiment(c.sentiment)} rounded-lg p-4`}>
+                <div className="flex justify-between items-start text-xs text-gray-500 mb-2">
+                  <span className="font-kanit">{c.meta}</span>
+                  <div className="flex items-center gap-2">
+                    {/* ปุ่มเอกสาร: รายละเอียดรายงาน */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl"
+                      title="รายละเอียดรายงาน"
+                      onClick={() => setOpenReportId(c.id)}
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+
+                    {/* ปุ่ม info: รายละเอียดความเห็น */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl"
+                      title="รายละเอียดความเห็น"
+                      onClick={() => setOpenDetailId(c.id)}
+                    >
+                      <Info className="h-4 w-4" />
+                    </Button>
+
+                    {/* ปุ่มลบ */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                      title="ลบรายการนี้"
+                      onClick={() => setPendingDelete(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="mb-3 font-kanit text-gray-800 text-base leading-relaxed">{c.text}</p>
+
+                <div className="flex flex-wrap gap-1">
+                  {c.tags.map((t: any, idx: number) => (
+                    <Badge key={idx} className={`${tagClass(t.tone)} font-kanit text-xs px-2 py-1 rounded-full`}>{t.label}</Badge>
+                  ))}
+                </div>
               </div>
-              <p className="mb-3 font-kanit text-gray-800 text-base leading-relaxed">{c.text}</p>
-              <div className="flex flex-wrap gap-1">
-                {c.tags.map((t, idx) => (
-                  <Badge key={idx} className={`${tagClass(t.tone)} font-kanit text-xs px-2 py-1 rounded-full`}>{t.label}</Badge>
-                ))}
+            ))}
+
+            {filtered.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-lg font-kanit text-gray-500">ไม่พบความคิดเห็นในกรองที่เลือก</p>
               </div>
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-lg font-kanit text-gray-500">ไม่พบความคิดเห็นในกรองที่เลือก</p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ===== Dialogs ===== */}
+      <ReportDetailDialog
+        open={!!openReportId}
+        onOpenChange={(v) => !v && setOpenReportId(null)}
+        data={currentReport}
+      />
+
+      <OpinionDetailDialog
+        open={!!openDetailId}
+        onOpenChange={(v) => !v && setOpenDetailId(null)}
+        titleMeta={currentDetail?.meta}
+        opinionText={currentDetail?.text}
+        rows={currentDetail?.detailRows || []}
+        onRowsChange={(rows) => currentDetail && updateDetailRows(currentDetail.id, rows)}
+      />
+
+      {/* ยืนยันการลบ */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-kanit">ยืนยันการลบ</AlertDialogTitle>
+            <AlertDialogDescription className="font-kanit">
+              คุณต้องการลบความคิดเห็นนี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel className="font-kanit">ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-red-600 hover:bg-red-700 font-kanit">
+              ลบ
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
@@ -1120,6 +1830,8 @@ const CustomerFeedback: React.FC = () => {
   const handleLogout = () => navigate("/");
   const [isOpen, setIsOpen] = useState(false);
   const [flowOpen, setFlowOpen] = useState(false);
+  const [selectedMainCats, setSelectedMainCats] = useState<string[]>([]);
+  const [selectedSubCats, setSelectedSubCats] = useState<string[]>([]);
 
 const location = useLocation();
     useEffect(() => {
@@ -1262,11 +1974,25 @@ const location = useLocation();
             <div className="space-y-6">
               <ServiceAreaCard />
               <TimePeriodCard />
-              <OpinionCard />
+
+              {/* ผูก opinion card แบบ controlled */}
+              <OpinionCard
+                selectedMainCategories={selectedMainCats}
+                setSelectedMainCategories={setSelectedMainCats}
+                selectedSubCategories={selectedSubCats}
+                setSelectedSubCategories={setSelectedSubCats}
+              />
+
               <TransactionTypeCard />
             </div>
+
             <div className="space-y-6">
-              <FeedbackChartsCard />
+              {/* ส่ง main/sub เพื่อให้กราฟ filter + sort ได้ */}
+              <FeedbackChartsCard
+                selectedMainCategories={selectedMainCats}
+                selectedSubCategories={selectedSubCats}
+                setSelectedSubCategories={setSelectedSubCats}
+              />
               <CustomerOpinionsCard />
             </div>
           </div>

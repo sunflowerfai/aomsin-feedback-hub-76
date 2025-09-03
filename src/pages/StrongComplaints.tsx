@@ -686,15 +686,6 @@ export default function StrongComplaintsDashboardPage() {
               <h2 className="text-3xl font-bold text-foreground font-kanit mb-2">ข้อร้องเรียนที่รุนแรง</h2>
               <p className="text-muted-foreground font-kanit">ติดตามและจัดการข้อร้องเรียนที่มีความรุนแรงสูงและต้องการความสนใจเป็นพิเศษ</p>
             </div>
-            <Button
-              type="button"
-              onClick={handleResetFilters}
-              className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-[14px] shadow-sm hover:bg-neutral-50"
-              variant="outline"
-            >
-              <RefreshCw className="h-4 w-4" />
-              รีเซ็ตตัวกรอง
-            </Button>
           </div>
 
           <div className="grid grid-cols-12 gap-6">
