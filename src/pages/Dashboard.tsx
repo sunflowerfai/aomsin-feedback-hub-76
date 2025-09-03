@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Menu, X, LogOut, RotateCcw } from "lucide-react";
+import { Menu, X, LogOut, RotateCcw, RefreshCw } from "lucide-react";
 import { MenuItems } from "@/components/dashboard/MenuItems";
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
 import { SatisfactionBlock, RegionalComparisonCard } from "@/components/dashboard/SatisfactionBlock";
@@ -11,10 +11,12 @@ import { FormSubmissionBlock } from "@/components/dashboard/FormSubmissionBlock"
 import { FeedbackBlock } from "@/components/dashboard/FeedbackBlock";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import CustomerFeedback from "@/pages/CustomerFeedback";
+import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /** ------------------------------ Component ------------------------------ */
 const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [flowOpen, setFlowOpen] = useState(false);
   const navigate = useNavigate();
   const { hash } = useLocation();
 
@@ -209,10 +211,11 @@ const Dashboard = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200"
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
                   aria-label="รีเฟรช"
+                  onClick={() => setFlowOpen(true)}
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -235,7 +238,7 @@ const Dashboard = () => {
           <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-bold text-foreground font-kanit mb-2">{pageTitle}</h2>
-              <p className="text-muted-foreground font-kanit">รวบรวมและวิเคราะห์ความคิดเห็นและข้อเสนอแนะจากลูกค้า</p>
+              <p className="text-muted-foreground font-kanit">ภาพรวมข้อมูลการให้บริการและข้อร้องเรียนของลูกค้าในเดือนปัจจุบัน</p>
             </div>
 
             {isOverview && (
@@ -360,8 +363,14 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+    
+      {/* FeedbackFlow Modal (controlled) */}
+      <FeedbackFlowModal
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        hideInternalTrigger
+      />
     </div>
   );
 };
-
 export default Dashboard;

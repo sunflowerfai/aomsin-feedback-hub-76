@@ -13,6 +13,7 @@ import { Calendar as CalendarPrimitive } from "@/components/ui/calendar";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLocation } from "react-router-dom";
+import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /* ===== Icons ===== */
 import {
@@ -24,6 +25,7 @@ import {
   Search as SearchIcon,
   Calendar as CalendarIcon,
   Check,
+  RefreshCw,
 } from "lucide-react";
 
 /* ===== Layout (same as Dashboard) ===== */
@@ -86,7 +88,7 @@ const SingleSelect: React.FC<SingleSelectProps> = ({ label, options, selectedIte
     <div className="relative" ref={dropdownRef}>
       <Button variant="outline" onClick={() => setIsOpen(!isOpen)} className="w-full justify-between border-gray-300 rounded-xl px-3 py-2 text-sm h-auto">
         <span className="font-kanit truncate text-left">{selectedItem || label || options[0]}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isOpen ? "animate-spin" : ""}`} />
+        <ChevronDown className="h-4 w-4" />
       </Button>
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
@@ -144,7 +146,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ label, options, selectedItems
     <div className="relative" ref={dropdownRef}>
       <Button variant="outline" onClick={() => setIsOpen(!isOpen)} className="w-full justify-between border-gray-300 rounded-xl px-3 py-2 text-sm h-auto">
         <span className="font-kanit truncate text-left">{selectedItems.length > 0 ? `เลือกแล้ว ${selectedItems.length} ${label}` : label}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isOpen ? "animate-spin" : ""}`} />
+        <ChevronDown className="h-4 w-4" />
       </Button>
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
@@ -480,7 +482,7 @@ const RegionalFeedbackChart: React.FC = () => {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            [เชิงบวก]
+            เชิงบวก
           </Button>
           <Button
             variant={selectedFilter === "negative" ? "outline" : "ghost"}
@@ -492,7 +494,7 @@ const RegionalFeedbackChart: React.FC = () => {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            [เชิงลบ]
+            เชิงลบ
           </Button>
         </div>
       </div>
@@ -578,7 +580,7 @@ const FeedbackChartsCard: React.FC = () => {
   const maxNegative = Math.max(...issuesData.map((i) => i.negative));
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
-        <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #c081a8, #dda4c7, #f4d3e6)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
+        <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
             <CardHeader className="pb-4">
                 <div>
                 <CardTitle className="font-kanit text-xl font-bold text-foreground">ข้อคิดเห็น/ข้อเสนอแนะ</CardTitle>
@@ -689,7 +691,7 @@ const CustomerOpinionsCard: React.FC = () => {
 
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
-      <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #c081a8, #dda4c7, #f4d3e6)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
+      <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="font-kanit text-xl font-bold text-foreground">ความคิดเห็นลูกค้า</CardTitle>
@@ -1117,6 +1119,8 @@ const CustomerFeedback: React.FC = () => {
   const navigate = useNavigate();
   const handleLogout = () => navigate("/");
   const [isOpen, setIsOpen] = useState(false);
+  const [flowOpen, setFlowOpen] = useState(false);
+
 const location = useLocation();
     useEffect(() => {
     setIsOpen(false);
@@ -1197,8 +1201,14 @@ const location = useLocation();
                 <p className="text-white text-base font-kanit">อัปเดตล่าสุด: 31/08/2025&nbsp; 09:49 น.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200" aria-label="รีเฟรช">
-                  <RotateCcw className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
+                  aria-label="รีเฟรช"
+                  onClick={() => setFlowOpen(true)}
+                >
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" onClick={handleLogout} className="text-white hover:bg-pink-400/30 flex items-center gap-2 font-kanit px-4 py-2 rounded-full border border-white/20 transition-colors duration-200">
                   <LogOut className="h-4 w-4" /> ออกจากระบบ
@@ -1211,7 +1221,7 @@ const location = useLocation();
 
       {/* Main Content */}
       <main className="main-content transition-all duration-200 ease-out min-h-screen">
-        <div className="container mx-auto p-6">
+        <div className="container mx-auto p-6 space-y-8">
           <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-bold text-foreground font-kanit mb-2">ข้อคิดเห็นของลูกค้า</h2>
@@ -1265,7 +1275,7 @@ const location = useLocation();
 
       {/* Footer (mirror Dashboard) */}
       <footer style={{ backgroundColor: "#ECEFF1" }} className="border-t border-border py-3 px-6">
-        <div className="container mx-auto">
+        <div className="container mx-auto p-6 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col md:flex-row md:items-center gap-4 text-center md:text-left">
               <span className="text-sm text-muted-foreground font-kanit">© 2024 Customer Dashboard. สงวนลิขสิทธิ์.</span>
@@ -1301,6 +1311,11 @@ const location = useLocation();
           </div>
         </div>
       </div>
+      <FeedbackFlowModal
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        hideInternalTrigger
+      />
     </div>
   );
 };

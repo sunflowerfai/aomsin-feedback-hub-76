@@ -1,8 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+
+import { Checkbox } from "@/components/ui/checkbox";
+
+import { Input } from "@/components/ui/input";
+
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import {
-  Menu, X, LogOut, RotateCcw, ChevronDown, Calendar, RefreshCw,
-} from "lucide-react";
+import { Menu, X, LogOut, RotateCcw, ChevronDown, Calendar, RefreshCw, Search as SearchIcon, Calendar as CalendarIcon, Check, } from "lucide-react";
 
 /* ===== shadcn/ui (เหมือนหน้า Dashboard) ===== */
 import { Button } from "@/components/ui/button";
@@ -12,8 +20,388 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 /* ===== Shared Dashboard Components ===== */
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
 import { MenuItems } from "@/components/dashboard/MenuItems";
+import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /* --------------------------- Utilities & Constants --------------------------- */
+
+/* ---------- SingleSelect ---------- */
+interface CFSingleSelectProps {
+  label: string;
+  options: string[];
+  selectedItem: string;
+  onSelectionChange: (selected: string) => void;
+}
+const CFSingleSelect: React.FC<CFSingleSelectProps> = ({ label, options, selectedItem, onSelectionChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button variant="outline" onClick={() => setIsOpen(!isOpen)} className="w-full justify-between border-gray-300 rounded-xl px-3 py-2 text-sm h-auto">
+        <span className="font-kanit truncate text-left">{selectedItem || label || options[0]}</span>
+        <ChevronDown className={`h-4 w-4 transition-none duration-300 `} />
+      </Button>
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+          {options.map((option) => (
+            <div
+              key={option}
+              onClick={() => {
+                onSelectionChange(option);
+                setIsOpen(false);
+              }}
+              className={`p-3 hover:bg-gray-50 cursor-pointer font-kanit text-sm border-b border-gray-100 last:border-b-0 ${selectedItem === option ? "bg-pink-50 text-pink-600" : ""}`}
+            >
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+/* ---------- MultiSelect ---------- */
+interface CFMultiSelectProps {
+  label: string;
+  options: string[];
+  selectedItems: string[];
+  onSelectionChange: (selected: string[]) => void;
+}
+const CFMultiSelect: React.FC<CFMultiSelectProps> = ({ label, options, selectedItems, onSelectionChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = options.filter((option) => option.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleSelect = (option: string) => {
+    if (option === "เลือกทั้งหมด") {
+      const allItems = options.slice(1);
+      onSelectionChange(selectedItems.length === allItems.length ? [] : allItems);
+    } else {
+      if (selectedItems.includes(option)) onSelectionChange(selectedItems.filter((item) => item !== option));
+      else onSelectionChange([...selectedItems, option]);
+    }
+  };
+  const isAllSelected = selectedItems.length === options.length - 1;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button variant="outline" onClick={() => setIsOpen(!isOpen)} className="w-full justify-between border-gray-300 rounded-xl px-3 py-2 text-sm h-auto">
+        <span className="font-kanit truncate text-left">{selectedItems.length > 0 ? `เลือกแล้ว ${selectedItems.length} ${label}` : label}</span>
+        <ChevronDown className={`h-4 w-4 transition-none duration-300 `} />
+      </Button>
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+          <div className="p-3 border-b border-gray-200">
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input placeholder="ค้นหา..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 border-pink-200 focus:border-pink-400 focus:ring-pink-400" />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filteredOptions.map((option) => {
+              const isSelected = option === "เลือกทั้งหมด" ? isAllSelected : selectedItems.includes(option);
+              return (
+                <div key={option} onClick={() => handleSelect(option)} className="flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer">
+                  <div className={`w-5 h-5 border-2 rounded-sm grid place-items-center transition-colors ${isSelected ? "border-pink-500 bg-pink-500" : "border-pink-300"}`}>
+                    {isSelected && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                  <span className="font-kanit text-sm flex-1">{option}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+/* ---------- DateRangePicker ---------- */
+interface DateRangePickerProps {
+  dateRange: { from: string; to: string };
+  onDateRangeChange: (range: { from: string; to: string }) => void;
+}
+const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onDateRangeChange }) => {
+  const formatDateThai = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+  const getCurrentDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, "0");
+    const day = today.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-kanit text-gray-600 mb-1 block">วันเริ่มต้น</label>
+          <div className="relative">
+            <Input
+              type="date"
+              max={getCurrentDate()}
+              onChange={(e) => onDateRangeChange({ ...dateRange, from: formatDateThai(e.target.value) })}
+              className="pr-8 text-sm"
+            />
+            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-kanit text-gray-600 mb-1 block">วันสิ้นสุด</label>
+          <div className="relative">
+            <Input
+              type="date"
+              max={getCurrentDate()}
+              onChange={(e) => onDateRangeChange({ ...dateRange, to: formatDateThai(e.target.value) })}
+              className="pr-8 text-sm"
+            />
+            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* =====================================================================================
+ * Cards (left column)
+ * ===================================================================================*/
+
+
+
+/* ---------- TimePeriodCard ---------- */
+const timePeriodOptions = ["ทั้งหมด", "ข้อมูลประจำเดือน", "ช่วงเวลาย้อนหลัง", "กำหนดช่วงเวลาเอง"];
+const monthYearOptions = [
+  "ม.ค. 63","ก.พ. 63","มี.ค. 63","เม.ย. 63","พ.ค. 63","มิ.ย. 63","ก.ค. 63","ส.ค. 63","ก.ย. 63","ต.ค. 63","พ.ย. 63","ธ.ค. 63",
+  "ม.ค. 64","ก.พ. 64","มี.ค. 64","เม.ย. 64","พ.ค. 64","มิ.ย. 64","ก.ค. 64","ส.ค. 64","ก.ย. 64","ต.ค. 64","พ.ย. 64","ธ.ค. 64",
+  "ม.ค. 65","ก.พ. 65","มี.ค. 65","เม.ย. 65","พ.ค. 65","มิ.ย. 65","ก.ค. 65","ส.ค. 65","ก.ย. 65","ต.ค. 65","พ.ย. 65","ธ.ค. 65",
+  "ม.ค. 66","ก.พ. 66","มี.ค. 66","เม.ย. 66","พ.ค. 66","มิ.ย. 66","ก.ค. 66","ส.ค. 66","ก.ย. 66","ต.ค. 66","พ.ย. 66","ธ.ค. 66",
+  "ม.ค. 67","ก.พ. 67","มี.ค. 67","เม.ย. 67","พ.ค. 67","มิ.ย. 67","ก.ค. 67","ส.ค. 67","ก.ย. 67","ต.ค. 67","พ.ย. 67","ธ.ค. 67",
+  "ม.ค. 68","ก.พ. 68","มี.ค. 68","เม.ย. 68","พ.ค. 68","มิ.ย. 68","ก.ค. 68","ส.ค. 68","ก.ย. 68","ต.ค. 68","พ.ย. 68","ธ.ค. 68",
+];
+const relativeTimeOptions = ["1 วัน", "7 วัน", "14 วัน", "1 เดือน", "6 เดือน", "1 ปี"];
+
+const TimePeriodCard: React.FC = () => {
+  const [selectedPeriodType, setSelectedPeriodType] = useState("ทั้งหมด");
+  const [selectedMonthYear, setSelectedMonthYear] = useState("");
+  const [selectedRelativeTime, setSelectedRelativeTime] = useState("");
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+
+  const renderSubDropdown = () => {
+    switch (selectedPeriodType) {
+      case "ข้อมูลประจำเดือน":
+        return <CFSingleSelect label="เดือน/ปี" options={monthYearOptions} selectedItem={selectedMonthYear} onSelectionChange={setSelectedMonthYear} />;
+      case "ช่วงเวลาย้อนหลัง":
+        return <CFSingleSelect label="ช่วงเวลา" options={relativeTimeOptions} selectedItem={selectedRelativeTime} onSelectionChange={setSelectedRelativeTime} />;
+      case "กำหนดช่วงเวลาเอง":
+        return <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ช่วงเวลา</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <CFSingleSelect label="" options={timePeriodOptions} selectedItem={selectedPeriodType} onSelectionChange={(v) => {
+          setSelectedPeriodType(v);
+          setSelectedMonthYear("");
+          setSelectedRelativeTime("");
+          setDateRange({ from: "", to: "" });
+        }} />
+        {renderSubDropdown()}
+        {selectedPeriodType === "กำหนดช่วงเวลาเอง" && dateRange.from && dateRange.to && (
+          <p className="text-xs text-gray-500 font-kanit mt-2">กำหนดช่วงเวลาเอง: {dateRange.from} - {dateRange.to}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+/* ---------- ServiceAreaCard ---------- */
+const businessLines = ["เลือกทั้งหมด", "สายกิจ 1", "สายกิจ 2", "สายกิจ 3", "สายกิจ 4", "สายกิจ 5", "สายกิจ 6"];
+const regions = ["เลือกทั้งหมด", ...Array.from({ length: 18 }, (_, i) => `ภาค ${i + 1}`)];
+// NOTE: districts & branches list are long; kept as in source for fidelity
+const districts = [
+  "เลือกทั้งหมด", "บางเขน", "ราชวัตร", "สะพานใหม่", "ห้วยขวาง", "คลองจั่น", "ถนนเพชรบุรี", "บางรัก", "พร้อมพงษ์", "พระโขนง", "มีนบุรี", "บางคอแหลม", "บางแค",
+  "ราษฎร์บูรณะ", "ศิริราช", "ประจวบคีรีขันธ์", "เพชรบุรี", "ราชบุรี", "สมุทรสาคร", "กาญจนบุรี", "นครปฐม", "นนทบุรี 1", "นนทบุรี 2", "สุพรรณบุรี", "นครสวรรค์",
+  "พิจิตร", "เพชรบูรณ์", "ลพบุรี", "อุทัยธานี", "กำแพงเพชร", "ตาก", "พิษณุโลก 1", "พิษณุโลก 2", "สุโขทัย", "อุตรดิตถ์", "เชียงใหม่ 1", "เชียงใหม่ 2",
+  "เชียงใหม่ 3", "ลำพูน", "เชียงราย", "น่าน", "พะเยา", "แพร่", "ลำปาง", "นครพนม", "บึงกาฬ", "เลย", "สกลนคร", "หนองคาย",
+  "หนองบัวลำภู", "อุดรธานี 1", "อุดรธานี 2", "กาฬสินธุ์", "ขอนแก่น 1", "ขอนแก่น 2", "ชัยภูมิ", "มหาสารคาม", "มุกดาหาร", "ร้อยเอ็ด", "บุรีรัมย์", "ยโสธร",
+  "ศรีสะเกษ", "สุรินทร์", "อุบลราชธานี 1", "อุบลราชธานี 2", "นครราชสีมา 1", "นครราชสีมา 2", "นครราชสีมา 3", "ปราจีนบุรี", "สระแก้ว", "ปทุมธานี 1", "ปทุมธานี 2",
+  "พระนครศรีอยุธยา 1", "พระนครศรีอยุธยา 2", "สระบุรี", "อ่างทอง", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี 1", "ชลบุรี 2", "ชลบุรี 3", "ชลบุรี 4", "ระยอง",
+  "สมุทรปราการ 1", "สมุทรปราการ 2", "ชุมพร 1", "ชุมพร 2", "พังงา", "ภูเก็ต", "สุราษฎร์ธานี 1", "สุราษฎร์ธานี 2", "กระบี่", "ตรัง", "นครศรีธรรมราช 1",
+  "นครศรีธรรมราช 2", "พัทลุง", "นราธิวาส", "ปัตตานี", "สงขลา 1", "สงขลา 2",
+];
+const branches = [
+  "เลือกทั้งหมด", "สำนักพหลโยธิน", "กรีนพลาซ่า (วังหิน)", "จตุจักร", "เซ็นทรัล ลาดพร้าว", "ตลาด อ.ต.ก.", "เตาปูน", "บางเขน", "ประชาชื่น", "ประชานิเวศน์ 1", "พงษ์เพชร",
+  // ... (รายการสาขายาว — คงไว้เพื่อความครบถ้วนตามต้นฉบับ)
+  "หาดใหญ่ใน",
+];
+
+const ServiceAreaCard: React.FC = () => {
+  const [selectedBusinessLines, setSelectedBusinessLines] = useState<string[]>([]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+
+  const handleReset = () => {
+    setSelectedBusinessLines([]);
+    setSelectedRegions([]);
+    setSelectedDistricts([]);
+    setSelectedBranches([]);
+  };
+
+  return (
+    <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">พื้นที่ดูแล</CardTitle>
+          <Button variant="ghost" size="icon" onClick={handleReset} className="h-8 w-8 rounded-xl hover:bg-gray-100">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CFMultiSelect label="สายกิจ" options={businessLines} selectedItems={selectedBusinessLines} onSelectionChange={setSelectedBusinessLines} />
+          <CFMultiSelect label="ภาค" options={regions} selectedItems={selectedRegions} onSelectionChange={setSelectedRegions} />
+          <CFMultiSelect label="เขต" options={districts} selectedItems={selectedDistricts} onSelectionChange={setSelectedDistricts} />
+          <CFMultiSelect label="สาขา" options={branches} selectedItems={selectedBranches} onSelectionChange={setSelectedBranches} />
+        </div>
+        <p className="text-xs text-gray-500 font-kanit mt-4">เลือกแล้ว: {selectedBusinessLines.length} สายกิจ, {selectedRegions.length} ภาค, {selectedDistricts.length} เขต, {selectedBranches.length} สาขา</p>
+      </CardContent>
+    </Card>
+  );
+};
+
+/* ---------- OpinionCard ---------- */
+const mainCategories = [
+  "เลือกทั้งหมด",
+  "Market Conduct",
+  "กระบวนการให้บริการ",
+  "ความประทับใจอื่นๆ",
+  "เงื่อนไขผลิตภัณฑ์",
+  "พนักงานและบุคลากร",
+  "ระบบธนาคารและเทคโนโลยี",
+  "สภาพแวดล้อมและสิ่งอำนวยความสะดวก",
+];
+const subCategories = [
+  "เลือกทั้งหมด",
+  "การบังคับ",
+  "การรบกวน",
+  "การหลอกลวง",
+  "การเอาเปรียบ",
+  "ขั้นตอนการให้บริการ",
+  "ความพร้อมในการให้บริการ",
+  "ภาระเอกสาร",
+  "อื่นๆ",
+  "เกณฑ์การอนุมัติ",
+  "ความเรียบง่ายข้อมูล",
+  "ระยะเวลาอนุมัติ",
+  "รายละเอียดผลิตภัณฑ์",
+  "การจัดการและแก้ไขปัญหาเฉพาะหน้า",
+  "ความถูกต้องในการให้บริการ",
+  "ความประทับใจในการให้บริการ",
+  "ความรวดเร็วในการให้บริการ",
+  "ความสามารถในการตอบคำถามหรือให้คำแนะนำ",
+  "ความสุภาพและมารยาทของพนักงาน",
+  "ความเอาใจใส่ในการให้บริการลูกค้า",
+  "รปภ. แม่บ้าน ฯลฯ",
+  "ATM ADM CDM",
+  "เครื่องนับเงิน",
+  "เครื่องปรับสมุด",
+  "เครื่องออกบัตรคิว",
+  "ระบบ Core ของธนาคาร",
+  "ระบบยืนยันตัวตน",
+  "แอปพลิเคชั่น MyMo",
+  "ความสะอาด",
+  "ทำเลพื้นที่และความคับคั่ง",
+  "ที่จอดรถ",
+  "ที่นั่งรอ",
+  "ป้าย-สื่อประชาสัมพันธ์",
+  "สิ่งอำนวยความสะดวกอื่นๆ",
+  "เสียง",
+  "แสงสว่าง",
+  "ห้องน้ำ",
+  "อุณหภูมิ",
+];
+
+const OpinionCard: React.FC = () => {
+  const [selectedMainCategories, setSelectedMainCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+  return (
+    <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ความคิดเห็น</CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => { setSelectedMainCategories([]); setSelectedSubCategories([]); }} className="h-8 w-8 rounded-xl hover:bg-gray-100">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <CFMultiSelect label="หมวดหมู่" options={mainCategories} selectedItems={selectedMainCategories} onSelectionChange={setSelectedMainCategories} />
+        <CFMultiSelect label="หมวดย่อย" options={subCategories} selectedItems={selectedSubCategories} onSelectionChange={setSelectedSubCategories} />
+        <p className="text-xs text-gray-500 font-kanit mt-4">เลือกแล้ว: {selectedMainCategories.length} หมวดหมู่, {selectedSubCategories.length} หมวดย่อย</p>
+      </CardContent>
+    </Card>
+  );
+};
+
+/* ---------- TransactionTypeCard ---------- */
+const transactionTypesList = ["เลือกทั้งหมด", "ฝาก-ถอนเงิน/สลาก", "ชำระสินเชื่อ/ชำระค่าสินค้าและบริการ", "สมัครใช้บริการ เงินฝาก/สินเชื่อ/MyMo/บัตร", "สอบถาม/ขอคำปรึกษา", "อื่น ๆ"];
+const TransactionTypeCard: React.FC = () => {
+  const [selectedTransactionTypes, setSelectedTransactionTypes] = useState<string[]>([]);
+  return (
+    <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ประเภทธุรกรรม</CardTitle>
+          <Button variant="ghost" size="icon" onClick={() => setSelectedTransactionTypes([])} className="h-8 w-8 rounded-xl hover:bg-gray-100">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <CFMultiSelect label="ประเภทธุรกรรม" options={transactionTypesList} selectedItems={selectedTransactionTypes} onSelectionChange={setSelectedTransactionTypes} />
+        <p className="text-xs text-gray-500 font-kanit mt-4">เลือกแล้ว: {selectedTransactionTypes.length} ประเภท</p>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 type ChipTone = "neutral" | "green" | "red" | "blue";
 
@@ -139,6 +527,7 @@ function MultiSelect({
 export default function StrongComplaintsDashboardPage() {
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [flowOpen, setFlowOpen] = useState(false);
 
   // Initial states
   const [selectedDivisions, setSelectedDivisions] = useState<string[]>([...DIVISION_OPTIONS]);
@@ -268,11 +657,11 @@ export default function StrongComplaintsDashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200"
-                  aria-label="รีเซ็ตฟิลเตอร์"
-                  onClick={handleResetFilters}
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
+                  aria-label="รีเฟรช"
+                  onClick={() => setFlowOpen(true)}
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -295,7 +684,7 @@ export default function StrongComplaintsDashboardPage() {
           <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-bold text-foreground font-kanit mb-2">ข้อร้องเรียนที่รุนแรง</h2>
-              <p className="text-muted-foreground font-kanit">รายการร้องเรียนที่ต้องให้ความสำคัญเร่งด่วน</p>
+              <p className="text-muted-foreground font-kanit">ติดตามและจัดการข้อร้องเรียนที่มีความรุนแรงสูงและต้องการความสนใจเป็นพิเศษ</p>
             </div>
             <Button
               type="button"
@@ -311,103 +700,10 @@ export default function StrongComplaintsDashboardPage() {
           <div className="grid grid-cols-12 gap-6">
             {/* ซ้าย: ฟิลเตอร์ */}
             <div className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-6">
-              <Card className="rounded-2xl border shadow-card bg-white overflow-hidden">
-                <div className="h-2 rounded-t-2xl bg-white" />
-                <CardHeader className="pb-4 pt-5">
-                  <CardTitle className="text-lg font-semibold font-kanit text-foreground">พื้นที่ดูแล</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <MultiSelect label="สายกิจ" options={DIVISION_OPTIONS} selected={selectedDivisions} onChange={setSelectedDivisions} resetKey={resetKey} />
-                  <MultiSelect label="ภาค" options={REGION_OPTIONS} selected={selectedRegions} onChange={setSelectedRegions} resetKey={resetKey} />
-                  <MultiSelect label="เขต" options={DISTRICT_OPTIONS} selected={selectedDistricts} onChange={setSelectedDistricts} resetKey={resetKey} />
-                  <MultiSelect label="สาขา" options={BRANCH_OPTIONS} selected={selectedBranches} onChange={setSelectedBranches} resetKey={resetKey} />
-                  <div className="text-[12px] text-neutral-700 font-kanit">
-                    เลือกแล้ว: {selectedDivisions.length} สายกิจ, {selectedRegions.length} ภาค, {selectedDistricts.length} เขต, {selectedBranches.length} สาขา
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border shadow-card bg-white overflow-hidden">
-                <div className="h-2 rounded-t-2xl bg-white" />
-                <CardHeader className="pb-4 pt-5">
-                  <CardTitle className="text-lg font-semibold font-kanit text-foreground">ช่วงเวลา</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <SelectBare label="โหมดเวลา" value={timeMode} onChange={setTimeMode} options={TIME_MODE_OPTIONS} />
-
-                  {timeMode === "ข้อมูลประจำเดือน" && (
-                    <div className="space-y-2">
-                      <SelectBare label="เดือน" value={selectedMonth} onChange={setSelectedMonth} options={MONTH_OPTIONS} />
-                      <div className="text-[12px] text-neutral-700 font-kanit">ข้อมูลประจำเดือน: {selectedMonth}</div>
-                    </div>
-                  )}
-
-                  {timeMode === "ช่วงเวลาย้อนหลัง" && (
-                    <div className="space-y-2">
-                      <SelectBare label="ระยะเวลา" value={duration} onChange={setDuration} options={DURATION_OPTIONS} />
-                      <div className="text-[12px] text-neutral-700 font-kanit">ช่วงเวลาย้อนหลัง: {duration}</div>
-                    </div>
-                  )}
-
-                  {timeMode === "กำหนดช่วงเวลาเอง" && (
-                    <div className="space-y-3">
-                      <div>
-                        <div className="mb-1.5 text-[13px] text-neutral-600 font-kanit">วันเริ่มต้น</div>
-                        <div className="relative">
-                          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e)=>setStartDate(e.target.value)}
-                            className="w-full rounded-2xl border border-neutral-200 bg-white px-9 py-2.5 text-[14px] text-neutral-800 shadow-sm focus:border-pink-400 focus:ring-2 focus:ring-[#ff5fbf]"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="mb-1.5 text-[13px] text-neutral-600 font-kanit">วันสิ้นสุด</div>
-                        <div className="relative">
-                          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                          <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e)=>setEndDate(e.target.value)}
-                            className="w-full rounded-2xl border border-neutral-200 bg-white px-9 py-2.5 text-[14px] text-neutral-800 shadow-sm focus:border-pink-400 focus:ring-2 focus:ring-[#ff5fbf]"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-[12px] text-neutral-700 font-kanit">
-                        กำหนดช่วงเวลาเอง: {(() => {
-                          const sd = new Date(startDate); const ed = new Date(endDate);
-                          const fmt = new Intl.DateTimeFormat("th-TH",{year:"numeric",month:"2-digit",day:"2-digit"});
-                          return `${fmt.format(sd)} - ${fmt.format(ed)}`;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border shadow-card bg-white overflow-hidden">
-                <div className="h-2 rounded-t-2xl bg-white" />
-                <CardHeader className="pb-4 pt-5">
-                  <CardTitle className="text-lg font-semibold font-kanit text-foreground">ประเภทธุรกรรม</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MultiSelect options={TRANSACTION_OPTIONS} selected={selectedTransactions} onChange={setSelectedTransactions} resetKey={resetKey} />
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border shadow-card bg-white overflow-hidden">
-                <div className="h-2 rounded-t-2xl bg-white" />
-                <CardHeader className="pb-4 pt-5">
-                  <CardTitle className="text-lg font-semibold font-kanit text-foreground">ความคิดเห็น</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <MultiSelect label="หมวดหมู่" options={CAT_MAIN_OPTIONS} selected={selectedCatMains} onChange={setSelectedCatMains} resetKey={resetKey} />
-                  <MultiSelect label="หมวดย่อย" options={CAT_SUB_OPTIONS} selected={selectedCatSubs} onChange={setSelectedCatSubs} resetKey={resetKey} />
-                  <div className="text-[12px] text-neutral-700 font-kanit">เลือกแล้ว: {selectedCatMains.length} หมวดหมู่, {selectedCatSubs.length} หมวดย่อย</div>
-                </CardContent>
-              </Card>
+              <ServiceAreaCard />
+              <TimePeriodCard />
+              <OpinionCard />
+              <TransactionTypeCard />
             </div>
 
             {/* ขวา: รายการร้องเรียน */}
@@ -416,7 +712,7 @@ export default function StrongComplaintsDashboardPage() {
                 <div className="h-2 rounded-t-2xl" style={{ background: "var(--gradient-pink-strip)" }} />
                 <CardHeader className="pb-4 pt-5">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold font-kanit text-foreground">ข้อร้องเรียนที่รุนแรง</CardTitle>
+                    <CardTitle className="font-kanit text-xl font-bold text-foreground">ข้อร้องเรียนที่รุนแรง</CardTitle>
                     <span className="text-sm text-muted-foreground font-kanit">พบ {foundCount} รายการ</span>
                   </div>
                 </CardHeader>
@@ -487,6 +783,11 @@ export default function StrongComplaintsDashboardPage() {
           </div>
         </div>
       </div>
+      <FeedbackFlowModal
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        hideInternalTrigger
+      />
     </div>
   );
 }

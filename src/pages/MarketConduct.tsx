@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 /* Dashboard shared components */
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
 import { MenuItems } from "@/components/dashboard/MenuItems";
+import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /* Icons */
 import {
@@ -26,6 +27,7 @@ import {
   ChevronDown,
   TrendingUp,
   TrendingDown,
+  RefreshCw,
 } from "lucide-react";
 
 /* Charts */
@@ -52,18 +54,28 @@ interface KPICardProps {
   percentage: number;
   trend: "up" | "down";
   previousValue?: string;
+  tone?: "blue" | "green" | "red" | "yellow"; // ✅ เพิ่ม
 }
+
 const SmallKPICard: React.FC<KPICardProps> = ({
   title,
   value,
   percentage,
   trend,
   previousValue,
+  tone,
 }) => {
   const TrendIcon = trend === "up" ? TrendingUp : TrendingDown;
   const tColor = trend === "up" ? "text-green-600" : "text-red-600";
-  const bgClass =
-    trend === "up" ? "bg-green-50 border-green-100" : "bg-rose-50 border-rose-100";
+
+  const toneBg: Record<NonNullable<KPICardProps["tone"]>, string> = {
+    blue: "bg-blue-50 border-blue-100",
+    green: "bg-green-50 border-green-100",
+    red: "bg-rose-50 border-rose-100",
+    yellow: "bg-amber-50 border-amber-100",
+  };
+  // ถ้าไม่กำหนด tone จะ fallback ตาม trend (ขึ้น=เขียว, ลง=ชมพู)
+  const bgClass = tone ? toneBg[tone] : trend === "up" ? toneBg.green : toneBg.red;
 
   return (
     <div className={`rounded-2xl shadow-soft p-5 border ${bgClass}`}>
@@ -88,36 +100,40 @@ const SmallKPICard: React.FC<KPICardProps> = ({
   );
 };
 
-/* KPI Section */
-const KPISection: React.FC = () => {
-  const kpiData = [
+
+const KPISection: React.FC<{ }> = () => {
+  const kpiData: KPICardProps[] = [
     {
       title: "ความคิดเห็นทั้งหมด",
       value: "1,247",
       percentage: 12.5,
-      trend: "up" as const,
+      trend: "up",
       previousValue: "1,108",
+      tone: "blue",    // ✅ ฟ้า (เหมือนภาพ)
     },
     {
       title: "ความคิดเห็นเชิงบวก",
       value: "856",
       percentage: 8.3,
-      trend: "up" as const,
+      trend: "up",
       previousValue: "791",
+      tone: "green",   // ✅ เขียวอ่อน
     },
     {
       title: "ความคิดเห็นเชิงลบ",
       value: "391",
       percentage: 5.2,
-      trend: "down" as const,
+      trend: "down",
       previousValue: "317",
+      tone: "red",     // ✅ ชมพูอ่อน (แดงอ่อน)
     },
     {
       title: "Top Issue",
       value: "การให้บริการ",
       percentage: 15.7,
-      trend: "up" as const,
+      trend: "up",
       previousValue: "ความถูกต้อง",
+      tone: "yellow",  // ✅ เหลืองครีม
     },
   ];
 
@@ -131,6 +147,7 @@ const KPISection: React.FC = () => {
     </div>
   );
 };
+
 
 /* ====================================================================== */
 /*                            Opinion Pie Chart                            */
@@ -627,6 +644,7 @@ const MarketConduct: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const handleLogout = () => navigate("/");
+  const [flowOpen, setFlowOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -692,10 +710,11 @@ const MarketConduct: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200"
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
                   aria-label="รีเฟรช"
+                  onClick={() => setFlowOpen(true)}
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -832,6 +851,11 @@ const MarketConduct: React.FC = () => {
           </div>
         </div>
       </div>
+      <FeedbackFlowModal
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        hideInternalTrigger
+      />
     </div>
   );
 };

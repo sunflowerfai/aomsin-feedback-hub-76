@@ -3,8 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/auth/AuthContext";
+
+type Role = "hr" | "admin" | "custom";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -12,16 +21,38 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // ดึง login() จาก AuthContext (ใช้ any กัน type แตกต่างข้ามโปรเจ็กต์)
+  const { login } = (useAuth() as any) ?? {};
+
+  // บัญชีตัวอย่าง
+  const accounts: Record<
+    string,
+    { role: Role; displayName: string; pass: string }
+  > = {
+    "HR User": { role: "hr", displayName: "สมศรี ใจดี", pass: "password123" },
+    Admin: { role: "admin", displayName: "สมชาย บริหาร", pass: "password123" },
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simple authentication check
-    if ((username === "HR User" && password === "password123") || 
-        (username === "Admin" && password === "password123")) {
+
+    const acc = accounts[username];
+    const ok = acc && password === acc.pass;
+
+    if (ok) {
+      // บันทึกผู้ใช้เข้า AuthContext เพื่อใช้ตรวจสิทธิ์ทั้งแอป
+      login?.({
+        username,
+        displayName: acc.displayName,
+        role: acc.role,
+        isAdmin: acc.role === "admin",
+      });
+
       toast({
         title: "เข้าสู่ระบบสำเร็จ",
-        description: `ยินดีต้อนรับ ${username}`,
+        description: `ยินดีต้อนรับ ${acc.displayName}`,
       });
+
       navigate("/dashboard");
     } else {
       toast({
@@ -32,9 +63,9 @@ const Login = () => {
     }
   };
 
-  const handleDemoLogin = (user: string, pass: string) => {
+  const handleDemoLogin = (user: keyof typeof accounts) => {
     setUsername(user);
-    setPassword(pass);
+    setPassword(accounts[user].pass);
   };
 
   return (
@@ -48,7 +79,7 @@ const Login = () => {
             Customer Feedback Management System
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
@@ -62,7 +93,7 @@ const Login = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">รหัสผ่าน</Label>
               <Input
@@ -74,34 +105,37 @@ const Login = () => {
                 required
               />
             </div>
-            
-            <Button type="submit" className="w-full bg-secondary hover:bg-primary transition-colors">
+
+            <Button
+              type="submit"
+              className="w-full bg-secondary hover:bg-primary transition-colors"
+            >
               เข้าสู่ระบบ
             </Button>
           </form>
-          
+
           <div className="space-y-3">
             <div className="text-sm text-center text-muted-foreground">
               ตัวอย่างบัญชีผู้ใช้:
             </div>
-            
+
             <div className="space-y-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full justify-start text-xs"
-                onClick={() => handleDemoLogin("HR User", "password123")}
+                onClick={() => handleDemoLogin("HR User")}
               >
                 <span className="font-medium">HR User</span>
                 <span className="mx-2">—</span>
                 <span>สมศรี ใจดี (password123)</span>
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full justify-start text-xs"
-                onClick={() => handleDemoLogin("Admin", "password123")}
+                onClick={() => handleDemoLogin("Admin")}
               >
                 <span className="font-medium">Admin</span>
                 <span className="mx-2">—</span>
@@ -109,9 +143,10 @@ const Login = () => {
               </Button>
             </div>
           </div>
-          
+
           <div className="text-xs text-center text-muted-foreground border-t pt-4">
-            ติดต่อสอบถาม: สำนักบริการสาธารณสุข<br />
+            ติดต่อสอบถาม: สำนักบริการสาธารณสุข
+            <br />
             โทร 02-XXX-XXXX ต่อ XXXX
           </div>
         </CardContent>

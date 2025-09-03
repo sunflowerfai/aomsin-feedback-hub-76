@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 /* ===== Icons ===== */
-import { Menu, LogOut, RotateCcw, Send, Settings, Bot, User } from "lucide-react";
+import { Menu, LogOut, RotateCcw, Send, Settings, Bot, User, RefreshCw } from "lucide-react";
 
 /* ===== Shared Dashboard Comps ===== */
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
 import { MenuItems } from "@/components/dashboard/MenuItems";
+import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /* =====================================================================================
  * Utils
@@ -32,7 +33,7 @@ const greet: Msg = {
 
 function genAssistantReply(input: string): string {
   if (!input.trim()) return "ขอรายละเอียดเพิ่มเติมเกี่ยวกับสิ่งที่ต้องการวิเคราะห์หน่อยครับ";
-  // ตอบกลับตัวอย่างแบบยึดธีมงานของคุณ
+  // ตอบกลับตัวอย่างแบบยึดธีมงานของคุณ4
   const hints = [
     "สรุปประเด็นหลักจากข้อความ:",
     "แนวโน้มที่พบ:",
@@ -51,6 +52,7 @@ function genAssistantReply(input: string): string {
 export default function AIChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [flowOpen, setFlowOpen] = useState(false);
 
   /* Drawer */
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -137,11 +139,11 @@ export default function AIChatPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200"
-                  aria-label="ล้างประวัติแชต"
-                  onClick={handleReset}
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
+                  aria-label="รีเฟรช"
+                  onClick={() => setFlowOpen(true)}
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -296,6 +298,11 @@ export default function AIChatPage() {
           </div>
         </div>
       </div>
+      <FeedbackFlowModal
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        hideInternalTrigger
+      />
     </div>
   );
 }

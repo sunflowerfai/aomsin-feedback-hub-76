@@ -564,20 +564,33 @@ export const SatisfactionBlock = () => {
         <div className="col-span-12 md:col-span-6">
           <div className="h-full min-h-[520px] rounded-lg border border-slate-100 bg-white flex flex-col">
             <CardHeader className="pb-4 pt-6">
-              <div className="flex items-center justify-between flex-nowrap gap-3">
-                <h3 className="m-0 font-kanit text-lg font-semibold text-foreground whitespace-nowrap">
+              <div className="grid grid-cols-3 items-center gap-3">
+                {/* ซ้ายเว้นว่างไว้เพื่อบาลานซ์ */}
+                <div />
+
+                {/* กลาง: หัวข้อ ชิดกลางและตัดคำถ้ายาว */}
+                <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center truncate">
                   คะแนนเฉลี่ยตามเกณฑ์
-                </h3>
-                <div className="shrink-0 ml-3">
-                  <Select value={selectedRegion} onValueChange={value => setSelectedRegion(value as keyof typeof satisfactionDataByRegion | "all")}>
+                </CardTitle>
+
+                {/* ขวา: ตัวเลือก */}
+                <div className="justify-self-end">
+                  <Select
+                    value={selectedRegion}
+                    onValueChange={(value) =>
+                      setSelectedRegion(value as keyof typeof satisfactionDataByRegion | "all")
+                    }
+                  >
                     <SelectTrigger className="w-[140px] bg-white border border-border rounded-lg text-sm font-kanit whitespace-nowrap">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-border rounded-lg shadow-lg z-50">
                       <SelectItem value="all" className="font-kanit">เลือกทั้งหมด</SelectItem>
-                      {Object.keys(satisfactionDataByRegion).map(region => <SelectItem key={region} value={region} className="font-kanit">
+                      {Object.keys(satisfactionDataByRegion).map((region) => (
+                        <SelectItem key={region} value={region} className="font-kanit">
                           {region}
-                        </SelectItem>)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -663,10 +676,9 @@ export const SatisfactionBlock = () => {
         <div className="col-span-12 md:col-span-6">
           <div className="h-full min-h-[520px] rounded-lg border border-slate-100 bg-white flex flex-col">
             <CardHeader className="pb-4 pt-6">
-              <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center">ความพึงพอใจ
-            </CardTitle>
+              <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center">ความพึงพอใจ</CardTitle>
             </CardHeader>
-            
+
             <CardContent className="flex-1 flex flex-col p-6 pt-0">
               <div className="flex-1 overflow-auto">
                 <div className="overflow-hidden rounded-lg border" style={{
