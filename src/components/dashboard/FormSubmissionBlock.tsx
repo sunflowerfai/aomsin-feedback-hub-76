@@ -1,6 +1,68 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Phone, Lightbulb, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { HelpCircle, X } from "lucide-react";
+
+const ServiceTypeInfoDialog: React.FC = () => {
+  const items = [
+    "ฝาก-ถอนเงิน/สลาก",
+    "ชำระสินเชื่อ/ชำระค่าสินค้าและบริการ",
+    "สมัครใช้บริการ เงินฝาก/สินเชื่อ/MyMo/บัตร",
+    "สอบถาม/ขอคำปรึกษา",
+    "อื่น ๆ",
+  ];
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="ข้อมูลประเภทการใช้บริการ"
+          className="h-8 w-8 rounded-xl text-[#D8218C] hover:bg-[#FFF1F7]"
+          title="ข้อมูลประเภทการใช้บริการ"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </Button>
+      </DialogTrigger>
+
+      {/* โมดัลแบบ header ชมพู + ปุ่มปิดมุมขวา และ padding เท่ากันทุกด้าน */}
+      <DialogContent className="max-w-md p-0 overflow-hidden rounded-xl">
+        {/* Header ชมพูเหมือนตัวอย่าง */}
+        <div
+          className="relative p-6"
+          style={{
+            background:
+              "linear-gradient(90deg,#f2449e 0%, #fd84d6 60%, #fda0dd 100%)",
+          }}
+        >
+          <DialogHeader className="p-0">
+            <DialogTitle className="text-white text-2xl font-bold text-center font-kanit">
+              ประเภทธุรกรรม
+            </DialogTitle>
+          </DialogHeader>
+        </div>
+
+        {/* เนื้อหา: padding เท่ากันทุกด้าน (p-6) */}
+        <div className="p-6">
+          <ul className="space-y-3">
+            {items.map((t, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span
+                  className="mt-1 h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: "#DF7AB0" }}
+                />
+                <span className="font-kanit text-[15px] text-gray-800">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 interface KPIData {
   icon: any;
@@ -234,8 +296,14 @@ export const FormSubmissionBlock = () => {
           
           {/* Bar Chart */}
           <div className="shasha">
-            <div className="space-y-4">
-              <h3 className="font-kanit text-lg font-semibold text-foreground text-center">ประเภทการใช้บริการ</h3>
+            <div className="space-y-4 relative">
+              <h3 className="font-kanit text-lg font-semibold text-foreground text-center">
+                ประเภทการใช้บริการ
+                  {/* ปุ่ม info มุมขวาของหัวข้อ */}
+                  <div className="absolute right-0 top-0">
+                    <ServiceTypeInfoDialog />
+                  </div>
+              </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={serviceTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>

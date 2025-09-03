@@ -80,8 +80,8 @@ const Dashboard = () => {
               <FormSubmissionBlock />
               <SatisfactionBlock />
               <RegionalComparisonCard />
-
-            </div>
+              
+                          </div>
 
             <div className="mt-12">
               <Tabs defaultValue="overview" className="w-full">
@@ -208,6 +208,7 @@ const Dashboard = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {/* ปุ่มรีเฟรช → เปิดโมดัล */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -217,6 +218,7 @@ const Dashboard = () => {
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
+
                 <Button
                   variant="ghost"
                   onClick={handleLogout}

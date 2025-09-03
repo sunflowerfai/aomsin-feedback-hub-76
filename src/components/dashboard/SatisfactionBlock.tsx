@@ -6,6 +6,81 @@ import { TopicFilterDropdown } from "@/components/dashboard/TopicFilterDropdown"
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { HelpCircle, X } from "lucide-react";
+
+const SatisfactionInfoDialog: React.FC = () => {
+  const rows = [
+    { score: 5, avg: "4.51 – 5.00",  pct: "90.20 – 100.00", label: "มากที่สุด" },
+    { score: 4, avg: "3.51 – 4.50",  pct: "70.20 – 90.00",  label: "มาก" },
+    { score: 3, avg: "2.51 – 3.50",  pct: "50.20 – 70.00",  label: "ปานกลาง" },
+    { score: 2, avg: "1.51 – 2.50",  pct: "30.20 – 50.00",  label: "น้อย" },
+    { score: 1, avg: "1.00 – 1.50",  pct: "20.00 – 30.00",  label: "น้อยที่สุด" },
+  ];
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="เกณฑ์ระดับความพึงพอใจ"
+          className="h-8 w-8 rounded-xl text-[#D8218C] hover:bg-[#FFF1F7]"
+          title="เกณฑ์ระดับความพึงพอใจ"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-3xl p-0 overflow-hidden">
+        {/* Header ชมพูเหมือนตัวอย่าง */}
+        <div
+          className="px-6 py-5 relative"
+          style={{ background: "var(--gradient-topbar)" }}
+        >
+          <DialogHeader className="p-0">
+            <DialogTitle className="text-white text-2xl font-bold text-center font-kanit">
+              เกณฑ์ระดับความพึงพอใจ
+            </DialogTitle>
+            <DialogDescription className="text-white/90 text-center font-kanit mt-1">
+              การตีความคะแนนเฉลี่ยและสัดส่วนเป็นระดับความพึงพอใจ
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* ตารางเกณฑ์ */}
+        <div className="p-6">
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50/60">
+                  <th className="text-left py-3 px-4 font-kanit text-gray-700">ระดับคะแนน</th>
+                  <th className="text-left py-3 px-4 font-kanit text-gray-700">ค่าเฉลี่ย</th>
+                  <th className="text-left py-3 px-4 font-kanit text-gray-700">เปอร์เซ็นต์ (%)</th>
+                  <th className="text-left py-3 px-4 font-kanit text-gray-700">ระดับความพึงพอใจ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-t border-slate-200">
+                    <td className="py-3 px-4">
+                      <div className="w-7 h-7 grid place-items-center rounded-full bg-slate-100 text-slate-600 text-sm font-medium">
+                        {r.score}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 font-kanit text-gray-900">{r.avg}</td>
+                    <td className="py-3 px-4 font-kanit text-gray-900">{r.pct}</td>
+                    <td className="py-3 px-4 font-kanit text-gray-900">{r.label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // ข้อมูลคะแนนความพึงพอใจตามภาค
 const satisfactionDataByRegion = {
@@ -601,70 +676,61 @@ export const SatisfactionBlock = () => {
               <div className="space-y-4 flex-1 flex flex-col">
                 <div className="flex-1 flex items-center justify-center">
                   <div className="relative w-full h-full">
-                     {/* Center label */}
-                     <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                       <div className="text-center">
-                         <div className="font-kanit leading-none" style={{
-                        color: '#D8218C',
-                        fontWeight: 800,
-                        fontSize: '48px',
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%) translateY(-20px)'
-                      }}>
-                           {averageScore.toFixed(1)}
-                         </div>
-                         <div className="font-kanit mt-1" style={{
-                        color: '#4B5563',
-                        fontWeight: 600,
-                        fontSize: '16px',
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%) translateY(12px)'
-                      }}>
-                           คะแนนเฉลี่ย
-                         </div>
-                       </div>
-                     </div>
-                    <div className="h-96">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={satisfactionCriteria} cx="50%" cy="50%" outerRadius="74%">
-                          <PolarGrid stroke="#E5E7EB" strokeOpacity={0.5} />
-                          <PolarAngleAxis dataKey="criteria" tick={props => {
-                          const {
-                            payload,
-                            x,
-                            y,
-                            textAnchor
-                          } = props;
-                          const criteriaItem = satisfactionCriteria.find(item => item.criteria === payload.value);
-                          const score = criteriaItem ? criteriaItem.score.toFixed(1) : '';
-                          return <g>
-                                  <text x={x} y={y} textAnchor={textAnchor} fontSize={18} fontFamily="Kanit" fontWeight={400} fill="#111" style={{
-                              padding: '16px',
-                              lineHeight: '18px',
-                              whiteSpace: 'nowrap'
-                            }}>
-                                    <tspan fill="#111">{payload.value}</tspan>
-                                    <tspan fill="#D8218C">{"\u00A0" + score}</tspan>
-                                  </text>
-                                </g>;
-                        }} />
-                          <PolarRadiusAxis angle={90} domain={[0, 5]} tick={{
-                          fontSize: 14,
-                          fontFamily: 'Kanit',
-                          fontWeight: 400,
-                          fill: '#6B7280'
-                        }} />
-                          <Radar name="คะแนน" dataKey="score" stroke="#DF7AB0" fill="#DF7AB0" fillOpacity={0.3} strokeWidth={2} dot={{
-                          r: 4,
-                          fill: "#DF7AB0"
-                        }} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
+                      <div className="relative h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={satisfactionCriteria} cx="50%" cy="50%" outerRadius="74%">
+                            <PolarGrid stroke="#E5E7EB" strokeOpacity={0.5} />
+                            <PolarAngleAxis
+                              dataKey="criteria"
+                              tick={(props) => {
+                                const { payload, x, y, textAnchor } = props;
+                                const criteriaItem = satisfactionCriteria.find(
+                                  (item) => item.criteria === payload.value
+                                );
+                                const score = criteriaItem ? criteriaItem.score.toFixed(1) : "";
+                                return (
+                                  <g>
+                                    <text
+                                      x={x}
+                                      y={y}
+                                      textAnchor={textAnchor}
+                                      fontSize={18}
+                                      fontFamily="Kanit"
+                                      fontWeight={400}
+                                      fill="#111"
+                                      style={{ padding: "16px", lineHeight: "18px", whiteSpace: "nowrap" }}
+                                    >
+                                      <tspan fill="#111">{payload.value}</tspan>
+                                      <tspan fill="#D8218C">{"\u00A0" + score}</tspan>
+                                    </text>
+                                  </g>
+                                );
+                              }}
+                            />
+                            {/* ซ่อนเลข 0/2 ภายใน */}
+                            <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} tickLine={false} axisLine={false} />
+                            <Radar
+                              name="คะแนน"
+                              dataKey="score"
+                              stroke="#DF7AB0"
+                              fill="#DF7AB0"
+                              fillOpacity={0.3}
+                              strokeWidth={2}
+                              dot={{ r: 4, fill: "#DF7AB0" }}
+                            />
+                          </RadarChart>
+                        </ResponsiveContainer>
+
+                        {/* ===== ข้อความกลางกราฟ ===== */}
+                        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+                          <div className="text-center">
+                            <div className="font-kanit text-5xl font-extrabold leading-none text-[#D8218C]">
+                              {averageScore.toFixed(1)}
+                            </div>
+                            <div className="font-kanit text-sm text-gray-500 mt-1">คะแนนเฉลี่ย</div>
+                          </div>
+                        </div>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -676,9 +742,15 @@ export const SatisfactionBlock = () => {
         <div className="col-span-12 md:col-span-6">
           <div className="h-full min-h-[520px] rounded-lg border border-slate-100 bg-white flex flex-col">
             <CardHeader className="pb-4 pt-6">
-              <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center">ความพึงพอใจ</CardTitle>
+              <div className="relative">
+                <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center">
+                  ความพึงพอใจ
+                </CardTitle>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <SatisfactionInfoDialog />
+                </div>
+              </div>
             </CardHeader>
-
             <CardContent className="flex-1 flex flex-col p-6 pt-0">
               <div className="flex-1 overflow-auto">
                 <div className="overflow-hidden rounded-lg border" style={{

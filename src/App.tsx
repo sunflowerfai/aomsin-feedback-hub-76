@@ -36,11 +36,7 @@ const App = () => (
             <Route path="/strong-complaints" element={<StrongComplaints />} />
             <Route path="/customer-feedback" element={<CustomerFeedback />} />
             <Route path="/403" element={<ForbiddenPage />} />
-
-            {/* admin-only routes */}
-            <Route element={<RequireAdmin redirectTo="/403" />}>
-              <Route path="/ai-chat" element={<Aichatbot />} />
-            </Route>
+            <Route path="/ai-chatbot" element={<Aichatbot />} />
 
             {/* fallback (must be last) */}
             <Route path="*" element={<NotFound />} />
