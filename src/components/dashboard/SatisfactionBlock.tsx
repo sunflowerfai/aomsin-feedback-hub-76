@@ -11,10 +11,10 @@ import { HelpCircle, X } from "lucide-react";
 
 const SatisfactionInfoDialog: React.FC = () => {
   const rows = [
-    { score: 5, avg: "4.51 – 5.00",  pct: "90.20 – 100.00", label: "มากที่สุด" },
-    { score: 4, avg: "3.51 – 4.50",  pct: "70.20 – 90.00",  label: "มาก" },
-    { score: 3, avg: "2.51 – 3.50",  pct: "50.20 – 70.00",  label: "ปานกลาง" },
-    { score: 2, avg: "1.51 – 2.50",  pct: "30.20 – 50.00",  label: "น้อย" },
+    { score: 5, avg: "4.51 – 5.00",  pct: "90.00 – 100.00", label: "มากที่สุด" },
+    { score: 4, avg: "3.51 – 4.50",  pct: "70.00 – 90.00",  label: "มาก" },
+    { score: 3, avg: "2.51 – 3.50",  pct: "50.00 – 70.00",  label: "ปานกลาง" },
+    { score: 2, avg: "1.51 – 2.50",  pct: "30.00 – 50.00",  label: "น้อย" },
     { score: 1, avg: "1.00 – 1.50",  pct: "20.00 – 30.00",  label: "น้อยที่สุด" },
   ];
 
