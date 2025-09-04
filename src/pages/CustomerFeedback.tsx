@@ -682,9 +682,6 @@ const FeedbackChartsCard: React.FC<{
     );
   }, [selectedMainCategories]);
 
-  const hasCategorySelection =
-    selectedMainCategories.length > 0 || selectedSubCategories.length > 0;
-
   // ถ้าไม่เลือก sub เลย → ถือว่าเลือกทั้งหมดใน allowed
   const activeSubs = useMemo(() => {
     return (selectedSubCategories.length ? selectedSubCategories : allowedSubs).filter(
@@ -787,183 +784,171 @@ const FeedbackChartsCard: React.FC<{
             </div>
           </div>
 
-          {/* ===== Butterfly chart (เพิ่ม sort + filter) ===== */}
-          {hasCategorySelection ? (
-            <div className="border border-gray-200 rounded-lg p-4 overflow-x-hidden relative">
-              {/* Control bar (absolute ไม่ดัน layout) */}
-              <div className="absolute right-4 top-4 flex items-center gap-1">
-                {/* Sort by negative (ซ้าย) */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-xl hover:bg-gray-100"
-                  onClick={() => {
-                    setSortBy("negative");
-                    setDir((p) => ({ ...p, negative: p.negative === "asc" ? "desc" : "asc" }));
-                  }}
-                  aria-label="เรียงฝั่งเชิงลบ"
-                  title="เรียงฝั่งเชิงลบ"
-                >
-                  {dir.negative === "asc"
-                    ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />
-                    : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />}
-                </Button>
+          {/* ===== Butterfly chart (แสดงตลอด + Top 5 by default) ===== */}
+          <div className="border border-gray-200 rounded-lg p-4 overflow-x-hidden relative">
+            {/* Control bar (absolute ไม่ดัน layout) */}
+            <div className="absolute right-4 top-4 flex items-center gap-1">
+              {/* Sort by negative (ซ้าย) */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                onClick={() => {
+                  setSortBy("negative");
+                  setDir((p) => ({ ...p, negative: p.negative === "asc" ? "desc" : "asc" }));
+                }}
+                aria-label="เรียงฝั่งเชิงลบ"
+                title="เรียงฝั่งเชิงลบ"
+              >
+                {dir.negative === "asc"
+                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />
+                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />}
+              </Button>
 
-                {/* Sort by positive (ขวา) */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-xl hover:bg-gray-100"
-                  onClick={() => {
-                    setSortBy("positive");
-                    setDir((p) => ({ ...p, positive: p.positive === "asc" ? "desc" : "asc" }));
-                  }}
-                  aria-label="เรียงฝั่งเชิงบวก"
-                  title="เรียงฝั่งเชิงบวก"
-                >
-                  {dir.positive === "asc"
-                    ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />
-                    : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />}
-                </Button>
+              {/* Sort by positive (ขวา) */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                onClick={() => {
+                  setSortBy("positive");
+                  setDir((p) => ({ ...p, positive: p.positive === "asc" ? "desc" : "asc" }));
+                }}
+                aria-label="เรียงฝั่งเชิงบวก"
+                title="เรียงฝั่งเชิงบวก"
+              >
+                {dir.positive === "asc"
+                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />
+                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />}
+              </Button>
 
-                {/* Filter by subcategory */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-gray-100" aria-label="กรองหมวดย่อย" title="กรองหมวดย่อย">
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-0 border-[#e5e7eb] rounded-xl" align="end">
-                    {/* === (ใหม่) เลือกจำนวนรายการที่แสดง === */}
-                    <div className="p-3 border-b space-y-2">
-                      <div className="text-sm font-kanit">จำนวนรายการที่แสดง</div>
-                      <Select
-                        value={String(displayLimit)}
-                        onValueChange={(v) => setDisplayLimit(parseInt(v, 10))}
-                      >
-                        <SelectTrigger className="h-8 text-xs font-kanit">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5" className="font-kanit text-xs">5</SelectItem>
-                          <SelectItem value="10" className="font-kanit text-xs">10</SelectItem>
-                          <SelectItem value="15" className="font-kanit text-xs">15</SelectItem>
-                          <SelectItem value="20" className="font-kanit text-xs">20</SelectItem>
-                          <SelectItem value="50" className="font-kanit text-xs">50</SelectItem>
-                          <SelectItem value="0" className="font-kanit text-xs">ทั้งหมด</SelectItem>
-                        </SelectContent>
-                      </Select>
+              {/* Filter by subcategory */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-gray-100" aria-label="กรองหมวดย่อย" title="กรองหมวดย่อย">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0 border-[#e5e7eb] rounded-xl" align="end">
+                  {/* จำนวนรายการที่แสดง */}
+                  <div className="p-3 border-b space-y-2">
+                    <div className="text-sm font-kanit">จำนวนรายการที่แสดง</div>
+                    <Select
+                      value={String(displayLimit)}
+                      onValueChange={(v) => setDisplayLimit(parseInt(v, 10))}
+                    >
+                      <SelectTrigger className="h-8 text-xs font-kanit">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5" className="font-kanit text-xs">5</SelectItem>
+                        <SelectItem value="10" className="font-kanit text-xs">10</SelectItem>
+                        <SelectItem value="15" className="font-kanit text-xs">15</SelectItem>
+                        <SelectItem value="20" className="font-kanit text-xs">20</SelectItem>
+                        <SelectItem value="50" className="font-kanit text-xs">50</SelectItem>
+                        <SelectItem value="0" className="font-kanit text-xs">ทั้งหมด</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* กรองหมวดย่อย */}
+                  <div className="p-3 border-b">
+                    <div className="text-sm font-kanit">กรองหมวดย่อย ({allowedSubs.length})</div>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    <div className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                      <Checkbox
+                        id="sub-all"
+                        checked={isAllChecked}
+                        onCheckedChange={(checked) => toggleAllSubs(!!checked)}
+                      />
+                      <label htmlFor="sub-all" className="text-sm font-kanit cursor-pointer flex-1">
+                        เลือกทั้งหมด
+                      </label>
                     </div>
-                    <div className="p-3 border-b">
-                      <div className="text-sm font-kanit">กรองหมวดย่อย ({allowedSubs.length})</div>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      <div className="flex items-center space-x-2 p-2 hover:bg-accent/40">
-                        <Checkbox
-                          id="sub-all"
-                          checked={isAllChecked}
-                          onCheckedChange={(checked) => toggleAllSubs(!!checked)}
-                        />
-                        <label htmlFor="sub-all" className="text-sm font-kanit cursor-pointer flex-1">
-                          เลือกทั้งหมด
-                        </label>
-                      </div>
-                      {allowedSubs.map((s) => {
-                        const checked = selectedSubCategories.includes(s) || (!selectedSubCategories.length && allowedSubs.includes(s));
-                        return (
-                          <div key={s} className="flex items-center space-x-2 p-2 hover:bg-accent/40">
-                            <Checkbox
-                              id={`sub-${s}`}
-                              checked={checked}
-                              onCheckedChange={(ck) => {
-                                if (ck) setSelectedSubCategories([...new Set([...selectedSubCategories, s])]);
-                                else setSelectedSubCategories(selectedSubCategories.filter((x) => x !== s));
-                              }}
-                            />
-                            <label htmlFor={`sub-${s}`} className="text-sm font-kanit cursor-pointer flex-1">
-                              {s}
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
-                ประเด็นที่ถูกกล่าวถึง
-              </h3>
-
-              {/* เนื้อกราฟ */}
-              <div className="relative w-full max-w-full px-2">
-                <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l border-dotted border-gray-300" />
-                <div className="space-y-3">
-                  {visibleIssues.map((item, index) => {
-                    const negativeWidth = (item.negative / maxNegative) * 100;
-                    const positiveWidth = (item.positive / maxPositive) * 100;
-                    return (
-                      <div
-                        key={`${item.label}-${index}`}
-                        className="grid grid-cols-[minmax(0,1fr)_clamp(120px,18vw,180px)_minmax(0,1fr)] gap-4 items-center text-xs"
-                      >
-                        {/* ซ้าย: เชิงลบ */}
-                        <div className="flex justify-end">
-                          <div className="bg-gray-100 h-4 rounded-none relative w-full">
-                            <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
-                            <div
-                              className="absolute right-3 top-0 h-4 bg-red-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
-                              style={{ width: `${negativeWidth}%` }}
-                            >
-                              {item.negative}
-                            </div>
-                          </div>
+                    {allowedSubs.map((s) => {
+                      const checked =
+                        selectedSubCategories.includes(s) ||
+                        (!selectedSubCategories.length && allowedSubs.includes(s));
+                      return (
+                        <div key={s} className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                          <Checkbox
+                            id={`sub-${s}`}
+                            checked={checked}
+                            onCheckedChange={(ck) => {
+                              if (ck) setSelectedSubCategories([...new Set([...selectedSubCategories, s])]);
+                              else setSelectedSubCategories(selectedSubCategories.filter((x) => x !== s));
+                            }}
+                          />
+                          <label htmlFor={`sub-${s}`} className="text-sm font-kanit cursor-pointer flex-1">
+                            {s}
+                          </label>
                         </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-                        {/* label กลาง */}
-                        <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2 truncate">
-                          {item.label}
-                        </div>
+            <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
+              ประเด็นที่ถูกกล่าวถึง
+            </h3>
 
-                        {/* ขวา: เชิงบวก */}
-                        <div className="flex justify-start">
-                          <div className="bg-gray-100 h-4 rounded-none relative w-full">
-                            <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
-                            <div
-                              className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
-                              style={{ width: `${positiveWidth}%` }}
-                            >
-                              {item.positive}
-                            </div>
+            {/* เนื้อกราฟ */}
+            <div className="relative w-full max-w-full px-2">
+              <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l border-dotted border-gray-300" />
+              <div className="space-y-3">
+                {visibleIssues.map((item, index) => {
+                  const negativeWidth = (item.negative / maxNegative) * 100;
+                  const positiveWidth = (item.positive / maxPositive) * 100;
+                  return (
+                    <div
+                      key={`${item.label}-${index}`}
+                      className="grid grid-cols-[minmax(0,1fr)_clamp(120px,18vw,180px)_minmax(0,1fr)] gap-4 items-center text-xs"
+                    >
+                      {/* ซ้าย: เชิงลบ */}
+                      <div className="flex justify-end">
+                        <div className="bg-gray-100 h-4 rounded-none relative w-full">
+                          <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
+                          <div
+                            className="absolute right-3 top-0 h-4 bg-red-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
+                            style={{ width: `${negativeWidth}%` }}
+                          >
+                            {item.negative}
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                  {visibleIssues.length === 0 && (
-                    <div className="text-center text-sm text-gray-500 font-kanit py-8">
-                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+
+                      {/* label กลาง */}
+                      <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2 truncate">
+                        {item.label}
+                      </div>
+
+                      {/* ขวา: เชิงบวก */}
+                      <div className="flex justify-start">
+                        <div className="bg-gray-100 h-4 rounded-none relative w-full">
+                          <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
+                          <div
+                            className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
+                            style={{ width: `${positiveWidth}%` }}
+                          >
+                            {item.positive}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })}
+
+                {visibleIssues.length === 0 && (
+                  <div className="text-center text-sm text-gray-500 font-kanit py-8">
+                    ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            // --- Placeholder เมื่อยังไม่ได้เลือกหมวด/หมวดย่อย ---
-            <div className="border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center text-center">
-              <Info className="h-6 w-6 text-gray-400 mb-3" />
-              <h3 className="font-kanit text-sm font-semibold text-gray-800 mb-1">
-                ประเด็นที่ถูกกล่าวถึง
-              </h3>
-              <p className="font-kanit text-sm text-gray-500">
-                ยังไม่แสดงกราฟ โปรดเลือก <span className="font-medium">“หมวดหมู่”</span> หรือ <span className="font-medium">“หมวดย่อย”</span> ทางฝั่งซ้ายก่อน
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8">
-          <RegionalFeedbackChart />
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -971,28 +956,31 @@ const FeedbackChartsCard: React.FC<{
 };
 
 // ========== ReportDetailDialog (รายละเอียดรายงาน) ==========
-// ========== ReportDetailDialog (รายละเอียดรายงาน) ==========
 type ReportDetail = {
   user_id?: string | null;
 
-  // ฟิลด์ใหม่ตามที่ขอ
-  business_line?: string;      // สายกิจ
-  district?: string;           // เขต
-  region?: string;             // ภาค
+  business_line?: string;   // สายกิจ
+  district?: string;        // เขต
+  region?: string;          // ภาค
 
-  branch?: string;             // สาขา
+  branch?: string;          // สาขา
   province?: string;
 
-  last_visit?: string;         // เข้าใช้บริการครั้งล่าสุด
-  transaction_type?: string;   // ทำธุรกรรมประเภทใด
+  last_visit?: string;      // เข้าใช้บริการครั้งล่าสุด
+  transaction_type?: string;// ทำธุรกรรมประเภทใด
 
   scores?: { label: string; value: string }[];
-  opinion?: string;
+  opinion?: string;         // = original text แต่เวลาแสดงใช้ label ว่า "ความคิดเห็น"
   main_category?: string;
   sub_category?: string;
   sentiment?: "positive" | "negative" | "neutral";
   created_at?: string;
-  meta?: string; // แสดงบรรทัดบนสีเขียวเหมือนรูป
+  meta?: string;
+
+  // ★ ใหม่
+  chunk_text?: string;      // chunk text
+  is_severe?: boolean;      // เคสเร่งด่วน/รุนแรง
+  contact_info?: string;    // ข้อมูลติดต่อกลับ
 };
 
 // ===== คะแนน 7 ข้อตามรูป + เติม 0/5 อัตโนมัติ =====
@@ -1032,68 +1020,66 @@ const ReportDetailDialog: React.FC<{
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0">
-        <div className="p-5">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
-          </DialogHeader>
+      <DialogContent className="p-0 w-[760px] max-w-[95vw] rounded-2xl overflow-hidden">
+        <div className="flex h-[80vh] max-h-[80vh] flex-col">
+          <div className="sticky top-0 z-10 bg-white px-5 pt-5 pb-3 border-b">
+            <DialogHeader className="mb-0">
+              <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
+            </DialogHeader>
+          </div>
 
-          {/* แถบหัวเหมือนรูป */}
-          {data?.opinion && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
-              <div className="text-sm text-emerald-700 font-kanit">{data?.meta || ""}</div>
-              <div className="text-gray-800 font-kanit">{data?.opinion}</div>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <div className="grid grid-cols-2 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
-              <div>ฟิลด์</div><div>ค่า</div>
-            </div>
-
+          {/* เนื้อหาที่เลื่อน */}
+          <div className="px-5 pb-5 overflow-y-auto">
             <div className="divide-y">
-              {/* ลำดับใหม่ตามที่ขอ */}
+              {/* 1. user_id */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">user_id</div>
                 <div className="font-kanit">{data?.user_id ?? "-"}</div>
               </div>
 
+              {/* 2. สายกิจ */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">สายกิจ</div>
                 <div className="font-kanit">{data?.business_line ?? "-"}</div>
               </div>
 
-              <div className="grid grid-cols-2 px-4 py-2 text-sm">
-                <div className="font-kanit text-gray-600">เขต</div>
-                <div className="font-kanit">{data?.district ?? "-"}</div>
-              </div>
-
+              {/* 3. ภาค */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">ภาค</div>
                 <div className="font-kanit">{data?.region ?? "-"}</div>
               </div>
 
+              {/* 4. เขต */}
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">เขต</div>
+                <div className="font-kanit">{data?.district ?? "-"}</div>
+              </div>
+
+              {/* 5. สาขา */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">สาขา</div>
                 <div className="font-kanit">{data?.branch ?? "-"}</div>
               </div>
 
+              {/* 6. province */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">province</div>
                 <div className="font-kanit">{data?.province ?? "-"}</div>
               </div>
 
+              {/* 7. เข้าใช้บริการครั้งล่าสุด */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">เข้าใช้บริการครั้งล่าสุด</div>
                 <div className="font-kanit">{data?.last_visit ?? "-"}</div>
               </div>
 
+              {/* 8. ทำธุรกรรมประเภทใด */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">ทำธุรกรรมประเภทใด</div>
                 <div className="font-kanit">{data?.transaction_type ?? "-"}</div>
               </div>
 
-              {/* คะแนน 0/5 ครบ 7 ข้อ */}
+              {/* 9–15. คะแนน 7 ข้อ ตาม SCORE_TEMPLATE */}
               {scores.map((s, i) => (
                 <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
                   <div className="font-kanit text-gray-600">{s.label}</div>
@@ -1101,29 +1087,49 @@ const ReportDetailDialog: React.FC<{
                 </div>
               ))}
 
+              {/* 16. ความคิดเห็น (= original text) */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">ความคิดเห็น</div>
                 <div className="font-kanit">{data?.opinion || "-"}</div>
               </div>
 
+              {/* 17. chunk text */}
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">chunk text</div>
+                <div className="font-kanit">{data?.chunk_text || "-"}</div>
+              </div>
+
+              {/* 18. main_category */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">main_category</div>
                 <div className="font-kanit">{data?.main_category || "-"}</div>
               </div>
 
+              {/* 19. sub_category */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">sub_category</div>
                 <div className="font-kanit">{data?.sub_category || "-"}</div>
               </div>
 
+              {/* 20. sentiment */}
               <div className="grid grid-cols-2 px-4 py-2 text-sm">
                 <div className="font-kanit text-gray-600">sentiment</div>
                 <div className="font-kanit">{data?.sentiment || "-"}</div>
               </div>
+
+              {/* 21. is_severe */}
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">is_severe</div>
+                <div className="font-kanit">{data?.is_severe ? "ใช่" : "ไม่ใช่"}</div>
+              </div>
+
+              {/* 22. ข้อมูลติดต่อกลับ */}
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">ข้อมูลติดต่อกลับ</div>
+                <div className="font-kanit">{data?.contact_info || "-"}</div>
+              </div>
             </div>
           </div>
-
-          {/* ไม่ทำปุ่มปิด ตามที่สั่ง */}
         </div>
       </DialogContent>
     </Dialog>
@@ -1250,29 +1256,28 @@ const CustomerOpinionsCard: React.FC = () => {
                     aria-label="สร้างรายงาน"
                     onClick={() => {
                       const md = parseMeta(c.meta); // ← ใช้ตัวช่วยใหม่
-                      setReportData({
-                        user_id: null,
+                        setReportData({
+                          user_id: null,
+                          business_line: "-",
+                          district: md.district,
+                          region: md.region,
+                          branch: md.branch,
+                          province: "",
+                          last_visit: "-",
+                          transaction_type: "-",
+                          scores: normalizeScores(),
+                          opinion: c.text,                 // ★ แสดงเป็น "ความคิดเห็น"
+                          main_category: c.tags?.[0]?.label || "",
+                          sub_category: c.tags?.[0]?.label || "",
+                          sentiment: toReportSentiment(c.sentiment as any),
+                          meta: c.meta,
+                          created_at: c.time,
 
-                        // ฟิลด์ใหม่
-                        business_line: "-",                   // ใส่จริงภายหลังได้
-                        district: md.district,
-                        region: md.region,
-
-                        branch: md.branch,                    // แสดงเป็น "สาขา" ใน dialog
-                        province: "",
-                        last_visit: "-",                      // ใส่ข้อมูลจริงเมื่อมี
-                        transaction_type: "-",               // ใส่ข้อมูลจริงเมื่อมี
-
-                        // คะแนน 0/5 ครบ 7 ข้อ (เติมอัตโนมัติ)
-                        scores: normalizeScores(),
-
-                        opinion: c.text,
-                        main_category: c.tags?.[0]?.label || "",
-                        sub_category: c.tags?.[0]?.label || "",
-                        sentiment: toReportSentiment(c.sentiment as any),
-                        meta: c.meta,
-                        created_at: c.time,
-                      });
+                          // ★ ใหม่
+                          chunk_text: "-",                 // ใส่จริงภายหลังได้
+                          is_severe: false,                // map จากกฎของคุณภายหลังได้
+                          contact_info: "-",               // โทร/อีเมล ฯลฯ
+                        });
                       setReportOpen(true);
                     }}
                   >

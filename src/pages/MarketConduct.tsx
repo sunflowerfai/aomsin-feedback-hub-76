@@ -66,16 +66,21 @@ type ReportDetail = {
   branch?: string;          // สาขา
   province?: string;
 
-  last_visit?: string;      // เข้าใช้บริการครั้งล่าสุด
+  last_visit?: string;       // เข้าใช้บริการครั้งล่าสุด
   transaction_type?: string; // ทำธุรกรรมประเภทใด
 
   scores?: { label: string; value: string }[]; // 0/5
-  opinion?: string;
+  opinion?: string;         // original text (แสดงป้ายชื่อว่า "ความคิดเห็น")
   main_category?: string;
   sub_category?: string;
   sentiment?: "positive" | "negative" | "neutral";
   created_at?: string;
-  meta?: string; // ใช้แสดงแถบหัวสีเขียว
+  meta?: string;            // ใช้แสดงแถบหัวสีเขียว
+
+  // ★ ใหม่
+  chunk_text?: string;      // chunk text
+  is_severe?: boolean;      // เคสรุนแรง?
+  contact_info?: string;    // ข้อมูลติดต่อกลับ
 };
 
 const SCORE_TEMPLATE = [
@@ -585,49 +590,133 @@ const ReportDetailDialog: React.FC<{
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0">
-        <div className="p-5">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
-          </DialogHeader>
+      {/* ★ กล่องคงที่ + มุมมน + ตัดส่วนเกินให้ตามโค้ง */}
+      <DialogContent className="p-0 w-[760px] max-w-[95vw] rounded-2xl overflow-hidden">
+        <div className="flex h-[80vh] max-h-[80vh] flex-col">
+          {/* ★ หัว sticky ไม่เลื่อนออกนอกจอ */}
+          <div className="sticky top-0 z-10 bg-white px-5 pt-5 pb-3 border-b shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            <DialogHeader className="mb-0">
+              <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
+            </DialogHeader>
+          </div>
 
-          {/* แถบหัวบนสีเขียว */}
-          {data?.opinion && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
-              <div className="text-sm text-emerald-700 font-kanit">{data?.meta || ""}</div>
-              <div className="text-gray-800 font-kanit">{data?.opinion}</div>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <div className="grid grid-cols-2 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
-              <div>ฟิลด์</div><div>ค่า</div>
-            </div>
-
-            <div className="divide-y">
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">user_id</div><div className="font-kanit">{data?.user_id ?? "-"}</div></div>
-
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">สายกิจ</div><div className="font-kanit">{data?.business_line ?? "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">เขต</div><div className="font-kanit">{data?.district ?? "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ภาค</div><div className="font-kanit">{data?.region ?? "-"}</div></div>
-
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">สาขา</div><div className="font-kanit">{data?.branch ?? "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">province</div><div className="font-kanit">{data?.province ?? "-"}</div></div>
-
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">เข้าใช้บริการครั้งล่าสุด</div><div className="font-kanit">{data?.last_visit ?? "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ทำธุรกรรมประเภทใด</div><div className="font-kanit">{data?.transaction_type ?? "-"}</div></div>
-
-              {scores.map((s, i) => (
-                <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
-                  <div className="font-kanit text-gray-600">{s.label}</div>
-                  <div className="font-kanit">{s.value}</div>
+          {/* ★ เนื้อหาข้างในเป็นส่วนที่เลื่อน */}
+          <div className="px-5 pb-5 overflow-y-auto">
+            {/* แถบหัวบนสีเขียว (โชว์ความคิดเห็นแบบ original text) */}
+            {data?.opinion && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
+                <div className="text-sm text-emerald-700 font-kanit">
+                  {data?.meta || ""}
                 </div>
-              ))}
+                <div className="text-gray-800 font-kanit">{data?.opinion}</div>
+              </div>
+            )}
 
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ความคิดเห็น</div><div className="font-kanit">{data?.opinion || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">main_category</div><div className="font-kanit">{data?.main_category || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sub_category</div><div className="font-kanit">{data?.sub_category || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sentiment</div><div className="font-kanit">{data?.sentiment || "-"}</div></div>
+            {/* ตารางรายละเอียด */}
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="grid grid-cols-2 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
+                <div>ฟิลด์</div><div>ค่า</div>
+              </div>
+
+              <div className="divide-y">
+                {/* 1. user_id */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">user_id</div>
+                  <div className="font-kanit">{data?.user_id ?? "-"}</div>
+                </div>
+
+                {/* 2. สายกิจ */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">สายกิจ</div>
+                  <div className="font-kanit">{data?.business_line ?? "-"}</div>
+                </div>
+
+                {/* 3. ภาค */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">ภาค</div>
+                  <div className="font-kanit">{data?.region ?? "-"}</div>
+                </div>
+
+                {/* 4. เขต */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">เขต</div>
+                  <div className="font-kanit">{data?.district ?? "-"}</div>
+                </div>
+
+                {/* 5. สาขา */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">สาขา</div>
+                  <div className="font-kanit">{data?.branch ?? "-"}</div>
+                </div>
+
+                {/* 6. province */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">province</div>
+                  <div className="font-kanit">{data?.province ?? "-"}</div>
+                </div>
+
+                {/* 7. เข้าใช้บริการครั้งล่าสุด */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">เข้าใช้บริการครั้งล่าสุด</div>
+                  <div className="font-kanit">{data?.last_visit ?? "-"}</div>
+                </div>
+
+                {/* 8. ทำธุรกรรมประเภทใด */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">ทำธุรกรรมประเภทใด</div>
+                  <div className="font-kanit">{data?.transaction_type ?? "-"}</div>
+                </div>
+
+                {/* 9–15. คะแนน 7 ข้อ ตาม SCORE_TEMPLATE */}
+                {scores.map((s, i) => (
+                  <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
+                    <div className="font-kanit text-gray-600">{s.label}</div>
+                    <div className="font-kanit">{s.value}</div>
+                  </div>
+                ))}
+
+                {/* 16. ความคิดเห็น (= original text) */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">ความคิดเห็น</div>
+                  <div className="font-kanit">{data?.opinion || "-"}</div>
+                </div>
+
+                {/* 17. chunk text */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">chunk text</div>
+                  <div className="font-kanit">{data?.chunk_text || "-"}</div>
+                </div>
+
+                {/* 18. main_category */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">main_category</div>
+                  <div className="font-kanit">{data?.main_category || "-"}</div>
+                </div>
+
+                {/* 19. sub_category */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">sub_category</div>
+                  <div className="font-kanit">{data?.sub_category || "-"}</div>
+                </div>
+
+                {/* 20. sentiment */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">sentiment</div>
+                  <div className="font-kanit">{data?.sentiment || "-"}</div>
+                </div>
+
+                {/* 21. is_severe */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">is_severe</div>
+                  <div className="font-kanit">{data?.is_severe ? "ใช่" : "ไม่ใช่"}</div>
+                </div>
+
+                {/* 22. ข้อมูลติดต่อกลับ */}
+                <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">ข้อมูลติดต่อกลับ</div>
+                  <div className="font-kanit">{data?.contact_info || "-"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -786,20 +875,25 @@ const CustomerFeedback: React.FC = () => {
                       onClick={() => {
                         setReportData({
                           user_id: null,
-                          business_line: "-",            // ยังไม่มีข้อมูล → ใส่จริงภายหลังได้
-                          district: "-",                 // ยังไม่มีข้อมูล
-                          region: item.region,           // ภาค
-                          branch: item.branch,           // สาขา
-                          province: "-",                 // ยังไม่มีข้อมูล
+                          business_line: "-",            // ใส่จริงภายหลังได้
+                          district: "-",                 // ใส่จริงภายหลังได้
+                          region: item.region,
+                          branch: item.branch,
+                          province: "-",
                           last_visit: `${item.date} ${item.time}`,
-                          transaction_type: "-",         // ยังไม่มีข้อมูล
-                          scores: normalizeScores(),     // โชว์ครบ 7 ข้อ 0/5
-                          opinion: item.content,
+                          transaction_type: "-",
+                          scores: normalizeScores(),
+                          opinion: item.content,         // = ความคิดเห็น (original text)
                           main_category: item.tags?.[0] || "-",
                           sub_category: item.tags?.[0] || "-",
                           sentiment: item.sentiment,
                           created_at: `${item.date} ${item.time}`,
                           meta: `${item.region} • ${item.branch}`,
+
+                          // ★ ใหม่
+                          chunk_text: "-",               // ใส่จริงภายหลังได้
+                          is_severe: false,              // map ตาม rule จริงภายหลังได้
+                          contact_info: "-",             // โทร/อีเมล/ช่องทางติดต่อ
                         });
                         setReportOpen(true);
                       }}
