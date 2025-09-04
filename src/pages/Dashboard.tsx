@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Menu, X, LogOut, RotateCcw, RefreshCw } from "lucide-react";
+import { Menu, LogOut, RotateCcw } from "lucide-react";
 import { MenuItems } from "@/components/dashboard/MenuItems";
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
 import { SatisfactionBlock, RegionalComparisonCard } from "@/components/dashboard/SatisfactionBlock";
@@ -11,12 +11,14 @@ import { FormSubmissionBlock } from "@/components/dashboard/FormSubmissionBlock"
 import { FeedbackBlock } from "@/components/dashboard/FeedbackBlock";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import CustomerFeedback from "@/pages/CustomerFeedback";
+
+// add AgentFlowModal
 import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 
 /** ------------------------------ Component ------------------------------ */
 const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [flowOpen, setFlowOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // state สำหรับเปิด/ปิด FeedbackFlowModal
   const navigate = useNavigate();
   const { hash } = useLocation();
 
@@ -31,13 +33,19 @@ const Dashboard = () => {
   const pageTitle = titleMap[section] ?? "สรุปภาพรวมประจำเดือน";
   const isOverview = !section; // แสดงฟิลเตอร์เฉพาะหน้า overview
 
-  // Year/Month filters
-  const currentYear = new Date().getFullYear() + 543;
+  /* ===== Year/Month filters (dynamic + block future) ===== */
+  const currentYear = new Date().getFullYear() + 543; // พ.ศ.
   const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(
-    currentYear >= 2567 && currentYear <= 2568 ? currentYear.toString() : "2568"
+
+  const baseYear = 2567; // ปีเริ่มข้อมูลของคุณ
+  const years = useMemo(
+    () =>
+      Array.from(
+        { length: Math.max(1, currentYear - baseYear + 1) },
+        (_, i) => String(baseYear + i)
+      ),
+    [currentYear]
   );
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
 
   const thaiMonths = [
     { value: "1", label: "มกราคม" },
@@ -52,7 +60,34 @@ const Dashboard = () => {
     { value: "10", label: "ตุลาคม" },
     { value: "11", label: "พฤศจิกายน" },
     { value: "12", label: "ธันวาคม" },
-  ];
+  ] as const;
+
+  const [selectedYear, setSelectedYear] = useState<string>(
+    years.includes(String(currentYear)) ? String(currentYear) : years[years.length - 1]
+  );
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
+
+  const availableMonths = useMemo(() => {
+    // ถ้าเลือกปีปัจจุบัน → ให้ได้แค่ถึงเดือนปัจจุบัน
+    if (parseInt(selectedYear, 10) === currentYear) {
+      return thaiMonths.filter((m) => parseInt(m.value, 10) <= currentMonth);
+    }
+    // ปีอดีต → ได้ครบทั้ง 12 เดือน
+    return thaiMonths;
+  }, [selectedYear, currentYear, currentMonth]);
+
+  useEffect(() => {
+    // กัน user เผลอไปปี/เดือนอนาคต
+    if (parseInt(selectedYear, 10) > currentYear) {
+      setSelectedYear(String(currentYear));
+    }
+    if (
+      parseInt(selectedYear, 10) === currentYear &&
+      parseInt(selectedMonth, 10) > currentMonth
+    ) {
+      setSelectedMonth(String(currentMonth));
+    }
+  }, [selectedYear, selectedMonth, currentYear, currentMonth]);
 
   const handleLogout = () => navigate("/");
 
@@ -80,8 +115,7 @@ const Dashboard = () => {
               <FormSubmissionBlock />
               <SatisfactionBlock />
               <RegionalComparisonCard />
-              
-                          </div>
+            </div>
 
             <div className="mt-12">
               <Tabs defaultValue="overview" className="w-full">
@@ -155,10 +189,8 @@ const Dashboard = () => {
       <header className="topbar px-6">
         <div className="w-full">
           <div className="flex items-center justify-between relative z-10">
-
             {/* Drawer: ใช้ตัวเดียว ครอบทั้ง mobile/desktop */}
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              {/* Trigger โชว์เฉพาะมือถือ */}
               <div className="md:hidden">
                 <SheetTrigger asChild>
                   <Button
@@ -176,16 +208,8 @@ const Dashboard = () => {
                 <SheetHeader className="flex flex-row items-center justify-between">
                   <SheetTitle className="font-kanit">เมนูหลัก</SheetTitle>
                 </SheetHeader>
-
                 <div className="mt-6">
-                  {/* มี MenuItems แค่ครั้งเดียวพอ */}
                   <MenuItems onItemClick={() => setIsOpen(false)} />
-                </div>
-
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="text-xs text-muted-foreground text-center font-kanit">
-                    อัพเดตล่าสุด: 27/08/2025 · 12:25 น.
-                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -212,11 +236,11 @@ const Dashboard = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20"
+                  onClick={() => setIsModalOpen(true)}
+                  className="text-white hover:bg-pink-400/30 w-10 h-10 rounded-full border border-white/20 transition-colors duration-200"
                   aria-label="รีเฟรช"
-                  onClick={() => setFlowOpen(true)}
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
 
                 <Button
@@ -233,18 +257,20 @@ const Dashboard = () => {
         </div>
       </header>
 
-
       {/* Main Content */}
       <main className="main-content transition-all duration-200 ease-out min-h-screen">
         <div className="container mx-auto p-6">
           <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-bold text-foreground font-kanit mb-2">{pageTitle}</h2>
-              <p className="text-muted-foreground font-kanit">ภาพรวมข้อมูลการให้บริการและข้อร้องเรียนของลูกค้าในเดือนปัจจุบัน</p>
+              <p className="text-muted-foreground font-kanit">
+                ภาพรวมข้อมูลการให้บริการและข้อร้องเรียนของลูกค้าในเดือนปัจจุบัน
+              </p>
             </div>
 
             {isOverview && (
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                {/* ปี */}
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-kanit text-muted-foreground">ปี</label>
                   <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -252,15 +278,20 @@ const Dashboard = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-border rounded-xl shadow-lg">
-                      <SelectItem value="2567" className="font-kanit hover:bg-muted/50 focus:bg-muted/50">
-                        2567
-                      </SelectItem>
-                      <SelectItem value="2568" className="font-kanit hover:bg-muted/50 focus:bg-muted/50">
-                        2568
-                      </SelectItem>
+                      {years.map((y) => (
+                        <SelectItem
+                          key={y}
+                          value={y}
+                          className="font-kanit hover:bg-muted/50 focus:bg-muted/50"
+                        >
+                          {y}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* เดือน */}
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-kanit text-muted-foreground">เดือน</label>
                   <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -268,7 +299,7 @@ const Dashboard = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-border rounded-xl shadow-lg max-h-[300px]">
-                      {thaiMonths.map((m) => (
+                      {availableMonths.map((m) => (
                         <SelectItem
                           key={m.value}
                           value={m.value}
@@ -287,18 +318,19 @@ const Dashboard = () => {
           {renderContent()}
         </div>
       </main>
-
+      
       {/* Footer */}
       <footer style={{ backgroundColor: "#ECEFF1" }} className="border-t border-border py-3 px-6">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col md:flex-row md:items-center gap-4 text-center md:text-left">
-              <span className="text-sm text-muted-foreground font-kanit">© 2024 Customer Dashboard. สงวนลิขสิทธิ์.</span>
+              <span className="text-sm text-muted-foreground font-kanit">
+                © 2024 Customer Dashboard. สงวนลิขสิทธิ์.
+              </span>
               <div className="flex flex-col sm:flex-row items-center gap-2 text-sm">
                 <a
                   href="#"
                   className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
-                  aria-label="นโยบายความเป็นส่วนตัว"
                 >
                   นโยบายความเป็นส่วนตัว
                 </a>
@@ -306,7 +338,6 @@ const Dashboard = () => {
                 <a
                   href="#"
                   className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
-                  aria-label="เงื่อนไขการใช้งาน"
                 >
                   เงื่อนไขการใช้งาน
                 </a>
@@ -314,7 +345,6 @@ const Dashboard = () => {
                 <a
                   href="#"
                   className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
-                  aria-label="ติดต่อเรา"
                 >
                   ติดต่อเรา
                 </a>
@@ -328,51 +358,10 @@ const Dashboard = () => {
         </div>
       </footer>
 
-      {/* Mobile Footer */}
-      <div className="md:hidden px-6 py-4">
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E7EB] overflow-hidden">
-          <div className="h-2 bg-gradient-to-r from-[#D8218C] via-[#DF7AB0] to-[#F9B5D3]"></div>
-
-          <div className="p-4">
-            <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 mb-4">
-              <a
-                href="#"
-                className="block bg-gradient-to-r from-[#D8218C] via-[#DF7AB0] to-[#F9B5D3] text-white font-kanit font-medium text-center py-3 px-2 rounded-xl hover:opacity-95 hover:shadow-lg transition-all duration-200"
-                aria-label="นโยบายความเป็นส่วนตัว"
-              >
-                นโยบายความเป็นส่วนตัว
-              </a>
-              <a
-                href="#"
-                className="block bg-gradient-to-r from-[#D8218C] via-[#DF7AB0] to-[#F9B5D3] text-white font-kanit font-medium text-center py-3 px-2 rounded-xl hover:opacity-95 hover:shadow-lg transition-all duration-200"
-                aria-label="เงื่อนไขการใช้งาน"
-              >
-                เงื่อนไขการใช้งาน
-              </a>
-              <a
-                href="#"
-                className="block bg-gradient-to-r from-[#D8218C] via-[#DF7AB0] to-[#F9B5D3] text-white font-kanit font-medium text-center py-3 px-2 rounded-xl hover:opacity-95 hover:shadow-lg transition-all duration-200"
-                aria-label="ติดต่อเรา"
-              >
-                ติดต่อเรา
-              </a>
-            </div>
-
-            <div className="text-center space-y-1">
-              <div className="text-xs text-[#6B7280] font-kanit leading-relaxed">© 2024 Customer Dashboard. สงวนลิขสิทธิ์.</div>
-              <div className="text-xs text-[#6B7280] font-kanit leading-relaxed">เวอร์ชัน 2.1.0</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    
       {/* FeedbackFlow Modal (controlled) */}
-      <FeedbackFlowModal
-        open={flowOpen}
-        onOpenChange={setFlowOpen}
-        hideInternalTrigger
-      />
+      <FeedbackFlowModal open={isModalOpen} onOpenChange={setIsModalOpen} hideInternalTrigger />
     </div>
   );
 };
+
 export default Dashboard;

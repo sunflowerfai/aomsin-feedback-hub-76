@@ -152,12 +152,14 @@ function CheckBox({ checked }: { checked: boolean }) {
   return (
     <div
       className={
-        "w-4 h-4 rounded border-2 flex items-center justify-center " +
-        (checked ? "border-pink-400 bg-pink-400" : "border-gray-300 bg-white")
+        "w-5 h-5 rounded-full border-2 grid place-items-center transition-colors " +
+        (checked ? "border-pink-500 bg-pink-500" : "border-pink-300 bg-white")
       }
+      aria-checked={checked}
+      role="checkbox"
     >
       {checked ? (
-        <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+        <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path
             fillRule="evenodd"
             clipRule="evenodd"
@@ -169,6 +171,20 @@ function CheckBox({ checked }: { checked: boolean }) {
   );
 }
 
+// ชุดคลาสสำหรับ Select ให้หน้าตาเหมือนหน้า Feedback
+const selectTriggerBase =
+  "justify-between h-10 rounded-xl border border-gray-300 px-3 py-2 font-kanit text-sm " +
+  "focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 " +
+  "hover:bg-gray-50 transition-colors";
+
+const selectContentBase = "rounded-xl border border-gray-200 shadow-lg";
+
+const selectItemBase =
+  "font-kanit text-sm cursor-pointer " +
+  "data-[highlighted]:bg-gray-50 data-[highlighted]:text-foreground " +
+  "data-[state=checked]:bg-pink-50 data-[state=checked]:text-pink-600 " +
+  "focus:bg-pink-50 focus:text-pink-700";
+
 type FiltersPanelRef = { applyFilters: () => void };
 
 const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string) => void }>(
@@ -177,7 +193,9 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
     const [area, setArea] = useState({ line: "", region: "", district: "", branch: "" });
 
     /* ประเภทบริการ */
-    const [services, setServices] = useState({ deposit: true, loanpay: true, apply: true, other: false });
+    const [services, setServices] = useState({
+      deposit: false, loanpay: false, apply: false, other: false
+    });
     const allSelected = services.deposit && services.loanpay && services.apply && services.other;
     const selectedServiceCount =
       (services.deposit ? 1 : 0) + (services.loanpay ? 1 : 0) + (services.apply ? 1 : 0) + (services.other ? 1 : 0);
@@ -185,7 +203,7 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
       setServices((s) => ({ ...s, [k]: !s[k] }));
 
     /* ช่วงเวลา */
-    const [period, setPeriod] = useState("quarter");
+    const [period, setPeriod] = useState("all");
 
     /* ความคิดเห็น (cascade หมวด→ย่อย) */
     const [maincat, setMaincat] = useState<string>("");
@@ -237,16 +255,13 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
               {/* สายกิจ (ต้องเลือกก่อน) */}
               <div className="flex items-center gap-3">
                 <label className="w-16 text-sm font-kanit font-medium text-dashboard-muted">สายกิจ:</label>
-                <Select
-                  value={area.line}
-                  onValueChange={(v) => setArea({ line: v, region: "", district: "", branch: "" })}
-                >
-                  <SelectTrigger className="flex-1">
+                <Select value={area.line} onValueChange={(v) => setArea({ line: v, region: "", district: "", branch: "" })}>
+                  <SelectTrigger className={`flex-1 ${selectTriggerBase}`}>
                     <SelectValue placeholder="เลือก" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={selectContentBase}>
                     {lineOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} className={selectItemBase}>
                         {o.label}
                       </SelectItem>
                     ))}
@@ -254,7 +269,7 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                 </Select>
               </div>
 
-              {/* ภาค (แสดงหลังเลือกสายกิจ) */}
+              {/* ภาค */}
               {area.line && (
                 <div className="flex items-center gap-3">
                   <label className="w-16 text-sm font-kanit font-medium text-dashboard-muted">ภาค:</label>
@@ -262,12 +277,12 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                     value={area.region}
                     onValueChange={(v) => setArea((a) => ({ ...a, region: v, district: "", branch: "" }))}
                   >
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className={`flex-1 ${selectTriggerBase}`}>
                       <SelectValue placeholder="เลือก" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={selectContentBase}>
                       {regionList.map((r) => (
-                        <SelectItem key={r} value={r}>
+                        <SelectItem key={r} value={r} className={selectItemBase}>
                           {labelOf(regionOptions, r)}
                         </SelectItem>
                       ))}
@@ -276,7 +291,7 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                 </div>
               )}
 
-              {/* เขต (แสดงหลังเลือกภาค) */}
+              {/* เขต */}
               {area.region && (
                 <div className="flex items-center gap-3">
                   <label className="w-16 text-sm font-kanit font-medium text-dashboard-muted">เขต:</label>
@@ -284,12 +299,12 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                     value={area.district}
                     onValueChange={(v) => setArea((a) => ({ ...a, district: v, branch: "" }))}
                   >
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className={`flex-1 ${selectTriggerBase}`}>
                       <SelectValue placeholder="เลือก" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={selectContentBase}>
                       {districtList.map((d) => (
-                        <SelectItem key={d} value={d}>
+                        <SelectItem key={d} value={d} className={selectItemBase}>
                           {labelOf(districtOptions, d)}
                         </SelectItem>
                       ))}
@@ -298,7 +313,7 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                 </div>
               )}
 
-              {/* สาขา (แสดงหลังเลือกเขต) */}
+              {/* สาขา */}
               {area.district && (
                 <div className="flex items-center gap-3">
                   <label className="w-16 text-sm font-kanit font-medium text-dashboard-muted">สาขา:</label>
@@ -306,12 +321,12 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                     value={area.branch}
                     onValueChange={(v) => setArea((a) => ({ ...a, branch: v }))}
                   >
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className={`flex-1 ${selectTriggerBase}`}>
                       <SelectValue placeholder="เลือก" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={selectContentBase}>
                       {branchList.map((b) => (
-                        <SelectItem key={b} value={b}>
+                        <SelectItem key={b} value={b} className={selectItemBase}>
                           {labelOf(branchOptions, b)}
                         </SelectItem>
                       ))}
@@ -332,12 +347,12 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
           {/* ช่วงเวลา */}
           <SectionCard title="ช่วงเวลา">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={`w-full ${selectTriggerBase}`}>
                 <SelectValue placeholder="เลือก" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={selectContentBase}>
                 {periodOptions.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
+                  <SelectItem key={p.value} value={p.value} className={selectItemBase}>
                     {p.label}
                   </SelectItem>
                 ))}
@@ -404,13 +419,14 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-kanit text-dashboard-muted mb-1 block">หมวดหมู่:</label>
+                {/* หมวดหมู่ */}
                 <Select value={maincat} onValueChange={(v) => setMaincat(v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={selectTriggerBase}>
                     <SelectValue placeholder="เลือก" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={selectContentBase}>
                     {maincatOptions.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
+                      <SelectItem key={m.value} value={m.value} className={selectItemBase}>
                         {m.label}
                       </SelectItem>
                     ))}
@@ -422,12 +438,12 @@ const FiltersPanel = forwardRef<FiltersPanelRef, { onApplied?: (summary: string)
                 <div>
                   <label className="text-sm font-kanit text-dashboard-muted mb-1 block">หมวดย่อย:</label>
                   <Select value={subcat} onValueChange={setSubcat}>
-                    <SelectTrigger>
+                    <SelectTrigger className={selectTriggerBase}>
                       <SelectValue placeholder="เลือก" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={selectContentBase}>
                       {subcatOptions.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
+                        <SelectItem key={s.value} value={s.value} className={selectItemBase}>
                           {s.label}
                         </SelectItem>
                       ))}
@@ -521,6 +537,13 @@ const RegionalDashboardOnePage: React.FC = () => {
     });
     return out;
   });
+
+// ปรับเป็น path จริงในแอปของคุณ
+const OPINIONS_PATH = "/customer-feedback";
+
+const goToCustomerOpinions = (sentiment: "positive" | "negative") => {
+  navigate(`${OPINIONS_PATH}?sentiment=${sentiment}`);
+};
 
   /* toggle legend */
   const [visible, setVisible] = useState<boolean[]>(() => categories.map(() => true));
@@ -712,8 +735,13 @@ const RegionalDashboardOnePage: React.FC = () => {
                         type="checkbox"
                         checked={visible[index]}
                         onChange={() => toggleCategory(index)}
-                        // ⬇️ checkbox ใช้ชมพูเดียวกัน
-                        className="h-4 w-4 rounded accent-[#D8218C]"
+                        className="
+                          h-5 w-5 appearance-none rounded-full
+                          border-2 border-pink-400
+                          checked:bg-[#D8218C] checked:border-[#D8218C]
+                          transition-colors
+                          focus:outline-none focus:ring-2 focus:ring-pink-300
+                        "
                       />
                       <span
                         className="inline-block h-3 w-3 rounded-sm"
@@ -804,6 +832,7 @@ const RegionalDashboardOnePage: React.FC = () => {
                             <Button
                               size="sm"
                               className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full px-3 py-1 text-xs"
+                              onClick={() => goToCustomerOpinions("positive")}
                             >
                               ดูข้อความ
                             </Button>
@@ -812,6 +841,7 @@ const RegionalDashboardOnePage: React.FC = () => {
                             <Button
                               size="sm"
                               className="bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-full px-3 py-1 text-xs"
+                              onClick={() => goToCustomerOpinions("negative")}
                             >
                               ดูข้อความ
                             </Button>

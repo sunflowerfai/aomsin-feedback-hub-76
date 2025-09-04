@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar as CalendarPrimitive } from "@/components/ui/calendar";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import FeedbackFlowModal from "@/components/dashboard/AgentFlowModal";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -219,7 +219,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onDateRang
               onChange={(e) => onDateRangeChange({ ...dateRange, from: formatDateThai(e.target.value) })}
               className="pr-8 text-sm"
             />
-            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
         <div>
@@ -231,7 +230,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onDateRang
               onChange={(e) => onDateRangeChange({ ...dateRange, to: formatDateThai(e.target.value) })}
               className="pr-8 text-sm"
             />
-            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -277,7 +275,22 @@ const TimePeriodCard: React.FC = () => {
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ช่วงเวลา</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ช่วงเวลา</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setSelectedPeriodType("ทั้งหมด");
+              setSelectedMonthYear("");
+              setSelectedRelativeTime("");
+              setDateRange({ from: "", to: "" });
+            }}
+            className="h-8 w-8 rounded-xl hover:bg-gray-100"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <SingleSelect label="" options={timePeriodOptions} selectedItem={selectedPeriodType} onSelectionChange={(v) => {
@@ -669,6 +682,9 @@ const FeedbackChartsCard: React.FC<{
     );
   }, [selectedMainCategories]);
 
+  const hasCategorySelection =
+    selectedMainCategories.length > 0 || selectedSubCategories.length > 0;
+
   // ถ้าไม่เลือก sub เลย → ถือว่าเลือกทั้งหมดใน allowed
   const activeSubs = useMemo(() => {
     return (selectedSubCategories.length ? selectedSubCategories : allowedSubs).filter(
@@ -707,7 +723,24 @@ const FeedbackChartsCard: React.FC<{
     setSelectedSubCategories(checkAll ? [...allowedSubs] : []);
   };
 
-  const isAllChecked = selectedSubCategories.length && selectedSubCategories.length === allowedSubs.length;
+  const isAllChecked = selectedSubCategories.length > 0 && selectedSubCategories.length === allowedSubs.length;
+
+  // เพิ่ม state: จำนวนรายการที่แสดง (0 = ทั้งหมด)
+  const [displayLimit, setDisplayLimit] = useState<number>(5);
+
+  // กรณีถือว่า "แสดงทั้งหมด": เลือกทั้งหมดจริง ๆ หรือยังไม่ได้เลือกอะไรเลย (ระบบตีความเป็นทั้งหมด)
+  const showingAll =
+    isAllChecked || selectedSubCategories.length === 0;
+
+  // จัดเรียงตามเดิม แล้วค่อยตัดจำนวนที่จะโชว์
+  const visibleIssues = useMemo(() => {
+    const list = sortedIssues;
+    if (showingAll && displayLimit > 0) {
+      return list.slice(0, displayLimit);
+    }
+    // ถ้าไม่ใช่โหมด "ทั้งหมด" หรือเลือกจำนวนเป็น "ทั้งหมด (0)" ให้แสดงตาม list เต็ม
+    return list;
+  }, [sortedIssues, showingAll, displayLimit]);
 
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
@@ -755,145 +788,178 @@ const FeedbackChartsCard: React.FC<{
           </div>
 
           {/* ===== Butterfly chart (เพิ่ม sort + filter) ===== */}
-          <div className="border border-gray-200 rounded-lg p-4 overflow-x-hidden relative">
-            {/* Control bar (absolute ไม่ดัน layout) */}
-            <div className="absolute right-4 top-4 flex items-center gap-1">
-              {/* Sort by negative (ซ้าย) */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-xl hover:bg-gray-100"
-                onClick={() => {
-                  setSortBy("negative");
-                  setDir((p) => ({ ...p, negative: p.negative === "asc" ? "desc" : "asc" }));
-                }}
-                aria-label="เรียงฝั่งเชิงลบ"
-                title="เรียงฝั่งเชิงลบ"
-              >
-                {dir.negative === "asc"
-                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />
-                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />}
-              </Button>
+          {hasCategorySelection ? (
+            <div className="border border-gray-200 rounded-lg p-4 overflow-x-hidden relative">
+              {/* Control bar (absolute ไม่ดัน layout) */}
+              <div className="absolute right-4 top-4 flex items-center gap-1">
+                {/* Sort by negative (ซ้าย) */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                  onClick={() => {
+                    setSortBy("negative");
+                    setDir((p) => ({ ...p, negative: p.negative === "asc" ? "desc" : "asc" }));
+                  }}
+                  aria-label="เรียงฝั่งเชิงลบ"
+                  title="เรียงฝั่งเชิงลบ"
+                >
+                  {dir.negative === "asc"
+                    ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />
+                    : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-negative))" }} />}
+                </Button>
 
-              {/* Sort by positive (ขวา) */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-xl hover:bg-gray-100"
-                onClick={() => {
-                  setSortBy("positive");
-                  setDir((p) => ({ ...p, positive: p.positive === "asc" ? "desc" : "asc" }));
-                }}
-                aria-label="เรียงฝั่งเชิงบวก"
-                title="เรียงฝั่งเชิงบวก"
-              >
-                {dir.positive === "asc"
-                  ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />
-                  : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />}
-              </Button>
+                {/* Sort by positive (ขวา) */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl hover:bg-gray-100"
+                  onClick={() => {
+                    setSortBy("positive");
+                    setDir((p) => ({ ...p, positive: p.positive === "asc" ? "desc" : "asc" }));
+                  }}
+                  aria-label="เรียงฝั่งเชิงบวก"
+                  title="เรียงฝั่งเชิงบวก"
+                >
+                  {dir.positive === "asc"
+                    ? <ChevronUp className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />
+                    : <ChevronDown className="h-4 w-4" style={{ color: "hsl(var(--chart-positive))" }} />}
+                </Button>
 
-              {/* Filter by subcategory */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-gray-100" aria-label="กรองหมวดย่อย" title="กรองหมวดย่อย">
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0 border-[#e5e7eb] rounded-xl" align="end">
-                  <div className="p-3 border-b">
-                    <div className="text-sm font-kanit">กรองหมวดย่อย ({allowedSubs.length})</div>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    <div className="flex items-center space-x-2 p-2 hover:bg-accent/40">
-                      <Checkbox
-                        id="sub-all"
-                        checked={isAllChecked}
-                        onCheckedChange={(checked) => toggleAllSubs(!!checked)}
-                      />
-                      <label htmlFor="sub-all" className="text-sm font-kanit cursor-pointer flex-1">
-                        เลือกทั้งหมด
-                      </label>
+                {/* Filter by subcategory */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-gray-100" aria-label="กรองหมวดย่อย" title="กรองหมวดย่อย">
+                      <Filter className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0 border-[#e5e7eb] rounded-xl" align="end">
+                    {/* === (ใหม่) เลือกจำนวนรายการที่แสดง === */}
+                    <div className="p-3 border-b space-y-2">
+                      <div className="text-sm font-kanit">จำนวนรายการที่แสดง</div>
+                      <Select
+                        value={String(displayLimit)}
+                        onValueChange={(v) => setDisplayLimit(parseInt(v, 10))}
+                      >
+                        <SelectTrigger className="h-8 text-xs font-kanit">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5" className="font-kanit text-xs">5</SelectItem>
+                          <SelectItem value="10" className="font-kanit text-xs">10</SelectItem>
+                          <SelectItem value="15" className="font-kanit text-xs">15</SelectItem>
+                          <SelectItem value="20" className="font-kanit text-xs">20</SelectItem>
+                          <SelectItem value="50" className="font-kanit text-xs">50</SelectItem>
+                          <SelectItem value="0" className="font-kanit text-xs">ทั้งหมด</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {allowedSubs.map((s) => {
-                      const checked = selectedSubCategories.includes(s) || (!selectedSubCategories.length && allowedSubs.includes(s));
-                      return (
-                        <div key={s} className="flex items-center space-x-2 p-2 hover:bg-accent/40">
-                          <Checkbox
-                            id={`sub-${s}`}
-                            checked={checked}
-                            onCheckedChange={(ck) => {
-                              if (ck) setSelectedSubCategories([...new Set([...selectedSubCategories, s])]);
-                              else setSelectedSubCategories(selectedSubCategories.filter((x) => x !== s));
-                            }}
-                          />
-                          <label htmlFor={`sub-${s}`} className="text-sm font-kanit cursor-pointer flex-1">
-                            {s}
-                          </label>
+                    <div className="p-3 border-b">
+                      <div className="text-sm font-kanit">กรองหมวดย่อย ({allowedSubs.length})</div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      <div className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                        <Checkbox
+                          id="sub-all"
+                          checked={isAllChecked}
+                          onCheckedChange={(checked) => toggleAllSubs(!!checked)}
+                        />
+                        <label htmlFor="sub-all" className="text-sm font-kanit cursor-pointer flex-1">
+                          เลือกทั้งหมด
+                        </label>
+                      </div>
+                      {allowedSubs.map((s) => {
+                        const checked = selectedSubCategories.includes(s) || (!selectedSubCategories.length && allowedSubs.includes(s));
+                        return (
+                          <div key={s} className="flex items-center space-x-2 p-2 hover:bg-accent/40">
+                            <Checkbox
+                              id={`sub-${s}`}
+                              checked={checked}
+                              onCheckedChange={(ck) => {
+                                if (ck) setSelectedSubCategories([...new Set([...selectedSubCategories, s])]);
+                                else setSelectedSubCategories(selectedSubCategories.filter((x) => x !== s));
+                              }}
+                            />
+                            <label htmlFor={`sub-${s}`} className="text-sm font-kanit cursor-pointer flex-1">
+                              {s}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
+                ประเด็นที่ถูกกล่าวถึง
+              </h3>
+
+              {/* เนื้อกราฟ */}
+              <div className="relative w-full max-w-full px-2">
+                <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l border-dotted border-gray-300" />
+                <div className="space-y-3">
+                  {visibleIssues.map((item, index) => {
+                    const negativeWidth = (item.negative / maxNegative) * 100;
+                    const positiveWidth = (item.positive / maxPositive) * 100;
+                    return (
+                      <div
+                        key={`${item.label}-${index}`}
+                        className="grid grid-cols-[minmax(0,1fr)_clamp(120px,18vw,180px)_minmax(0,1fr)] gap-4 items-center text-xs"
+                      >
+                        {/* ซ้าย: เชิงลบ */}
+                        <div className="flex justify-end">
+                          <div className="bg-gray-100 h-4 rounded-none relative w-full">
+                            <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
+                            <div
+                              className="absolute right-3 top-0 h-4 bg-red-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
+                              style={{ width: `${negativeWidth}%` }}
+                            >
+                              {item.negative}
+                            </div>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
 
-            <h3 className="text-center mb-4 font-semibold font-kanit text-sm text-gray-800">
-              ประเด็นที่ถูกกล่าวถึง
-            </h3>
+                        {/* label กลาง */}
+                        <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2 truncate">
+                          {item.label}
+                        </div>
 
-            {/* เนื้อกราฟ */}
-            <div className="relative w-full max-w-full px-2">
-              <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l border-dotted border-gray-300" />
-              <div className="space-y-3">
-                {sortedIssues.map((item, index) => {
-                  const negativeWidth = (item.negative / maxNegative) * 100;
-                  const positiveWidth = (item.positive / maxPositive) * 100;
-                  return (
-                    <div
-                      key={`${item.label}-${index}`}
-                      className="grid grid-cols-[minmax(0,1fr)_clamp(120px,18vw,180px)_minmax(0,1fr)] gap-4 items-center text-xs"
-                    >
-                      {/* ซ้าย: เชิงลบ */}
-                      <div className="flex justify-end">
-                        <div className="bg-gray-100 h-4 rounded-sm relative w-full">
-                          <div className="absolute right-0 top-0 w-3 h-4 bg-gray-200" />
-                          <div
-                            className="absolute right-3 top-0 h-4 bg-red-500 rounded-r-sm flex items-center justify-center text-white font-kanit text-xs"
-                            style={{ width: `${negativeWidth}%` }}
-                          >
-                            {item.negative}
+                        {/* ขวา: เชิงบวก */}
+                        <div className="flex justify-start">
+                          <div className="bg-gray-100 h-4 rounded-none relative w-full">
+                            <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
+                            <div
+                              className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-none flex items-center justify-center text-white font-kanit text-xs"
+                              style={{ width: `${positiveWidth}%` }}
+                            >
+                              {item.positive}
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* label กลาง */}
-                      <div className="text-center font-kanit text-gray-700 whitespace-nowrap px-2 truncate">
-                        {item.label}
-                      </div>
-
-                      {/* ขวา: เชิงบวก */}
-                      <div className="flex justify-start">
-                        <div className="bg-gray-100 h-4 rounded-sm relative w-full">
-                          <div className="absolute left-0 top-0 w-3 h-4 bg-gray-200" />
-                          <div
-                            className="absolute left-3 top-0 h-4 bg-emerald-500 rounded-l-sm flex items-center justify-center text-white font-kanit text-xs"
-                            style={{ width: `${positiveWidth}%` }}
-                          >
-                            {item.positive}
-                          </div>
-                        </div>
-                      </div>
+                    );
+                  })}
+                  {visibleIssues.length === 0 && (
+                    <div className="text-center text-sm text-gray-500 font-kanit py-8">
+                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
                     </div>
-                  );
-                })}
-                {sortedIssues.length === 0 && (
-                  <div className="text-center text-sm text-gray-500 font-kanit py-8">
-                    ไม่พบข้อมูลตามเงื่อนไขที่เลือก
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            // --- Placeholder เมื่อยังไม่ได้เลือกหมวด/หมวดย่อย ---
+            <div className="border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center text-center">
+              <Info className="h-6 w-6 text-gray-400 mb-3" />
+              <h3 className="font-kanit text-sm font-semibold text-gray-800 mb-1">
+                ประเด็นที่ถูกกล่าวถึง
+              </h3>
+              <p className="font-kanit text-sm text-gray-500">
+                ยังไม่แสดงกราฟ โปรดเลือก <span className="font-medium">“หมวดหมู่”</span> หรือ <span className="font-medium">“หมวดย่อย”</span> ทางฝั่งซ้ายก่อน
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-8">
@@ -905,9 +971,21 @@ const FeedbackChartsCard: React.FC<{
 };
 
 // ========== ReportDetailDialog (รายละเอียดรายงาน) ==========
+// ========== ReportDetailDialog (รายละเอียดรายงาน) ==========
 type ReportDetail = {
   user_id?: string | null;
-  branch?: string; province?: string;
+
+  // ฟิลด์ใหม่ตามที่ขอ
+  business_line?: string;      // สายกิจ
+  district?: string;           // เขต
+  region?: string;             // ภาค
+
+  branch?: string;             // สาขา
+  province?: string;
+
+  last_visit?: string;         // เข้าใช้บริการครั้งล่าสุด
+  transaction_type?: string;   // ทำธุรกรรมประเภทใด
+
   scores?: { label: string; value: string }[];
   opinion?: string;
   main_category?: string;
@@ -916,9 +994,42 @@ type ReportDetail = {
   created_at?: string;
   meta?: string; // แสดงบรรทัดบนสีเขียวเหมือนรูป
 };
+
+// ===== คะแนน 7 ข้อตามรูป + เติม 0/5 อัตโนมัติ =====
+const SCORE_TEMPLATE = [
+  "การดูแลเอาใจใส่/ความสบายใจ",
+  "การตอบคำถาม/ให้คำแนะนำ/ความเป็นมืออาชีพ",
+  "ความรวดเร็ว (หลังเรียกคิว)",
+  "ความถูกต้อง",
+  "ความพร้อมของเครื่องมือ (ATM/ADM/Passbook)",
+  "สภาพแวดล้อมของสาขา",
+  "ความประทับใจโดยรวม",
+] as const;
+
+const normalizeScores = (scores?: { label: string; value: string }[]) => {
+  const map = new Map(scores?.map(s => [s.label.trim(), s.value.trim()]));
+  return SCORE_TEMPLATE.map(label => ({
+    label,
+    value: map.get(label) || "0/5",
+  }));
+};
+
+// ===== ดึง ภาค/เขต/สาขา จาก meta เช่น "ภาค16 • เขต กะทู้ • ป่าตอง" =====
+const parseMeta = (meta?: string) => {
+  const fallback = { region: "-", district: "-", branch: "-" };
+  if (!meta) return fallback;
+  const parts = meta.split("•").map(s => s.trim());
+  const region = parts[0] || "-";
+  const district = (parts[1] || "-").replace(/^เขต\s*/i, "");
+  const branch = parts[2] || "-";
+  return { region, district, branch };
+};
+
 const ReportDetailDialog: React.FC<{
   open: boolean; onOpenChange: (v: boolean) => void; data: ReportDetail | null;
 }> = ({ open, onOpenChange, data }) => {
+  const scores = normalizeScores(data?.scores);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0">
@@ -930,8 +1041,8 @@ const ReportDetailDialog: React.FC<{
           {/* แถบหัวเหมือนรูป */}
           {data?.opinion && (
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
-              <div className="text-sm text-emerald-700 font-kanit">{data.meta || ""}</div>
-              <div className="text-gray-800 font-kanit">{data.opinion}</div>
+              <div className="text-sm text-emerald-700 font-kanit">{data?.meta || ""}</div>
+              <div className="text-gray-800 font-kanit">{data?.opinion}</div>
             </div>
           )}
 
@@ -941,22 +1052,72 @@ const ReportDetailDialog: React.FC<{
             </div>
 
             <div className="divide-y">
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">user_id</div><div className="font-kanit">{data?.user_id || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">branch</div><div className="font-kanit">{data?.branch || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">province</div><div className="font-kanit">{data?.province || "-"}</div></div>
+              {/* ลำดับใหม่ตามที่ขอ */}
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">user_id</div>
+                <div className="font-kanit">{data?.user_id ?? "-"}</div>
+              </div>
 
-              {/* คะแนน 0/5 ตามรูป */}
-              {data?.scores?.map((s, i) => (
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">สายกิจ</div>
+                <div className="font-kanit">{data?.business_line ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">เขต</div>
+                <div className="font-kanit">{data?.district ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">ภาค</div>
+                <div className="font-kanit">{data?.region ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">สาขา</div>
+                <div className="font-kanit">{data?.branch ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">province</div>
+                <div className="font-kanit">{data?.province ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">เข้าใช้บริการครั้งล่าสุด</div>
+                <div className="font-kanit">{data?.last_visit ?? "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">ทำธุรกรรมประเภทใด</div>
+                <div className="font-kanit">{data?.transaction_type ?? "-"}</div>
+              </div>
+
+              {/* คะแนน 0/5 ครบ 7 ข้อ */}
+              {scores.map((s, i) => (
                 <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
                   <div className="font-kanit text-gray-600">{s.label}</div>
                   <div className="font-kanit">{s.value}</div>
                 </div>
               ))}
 
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ความคิดเห็น</div><div className="font-kanit">{data?.opinion || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">main_category</div><div className="font-kanit">{data?.main_category || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sub_category</div><div className="font-kanit">{data?.sub_category || "-"}</div></div>
-              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sentiment</div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">ความคิดเห็น</div>
+                <div className="font-kanit">{data?.opinion || "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">main_category</div>
+                <div className="font-kanit">{data?.main_category || "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">sub_category</div>
+                <div className="font-kanit">{data?.sub_category || "-"}</div>
+              </div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm">
+                <div className="font-kanit text-gray-600">sentiment</div>
                 <div className="font-kanit">{data?.sentiment || "-"}</div>
               </div>
             </div>
@@ -969,474 +1130,437 @@ const ReportDetailDialog: React.FC<{
   );
 };
 
-// ========== OpinionDetailDialog (รายละเอียดความเห็น) ==========
-type OpinionRow = {
-  text: string;
-  main: string;
-  sub: string;
-  sentiment: "positive" | "negative";
-};
-const OpinionDetailDialog: React.FC<{
-  open: boolean; onOpenChange: (v: boolean) => void;
-  titleMeta?: string; opinionText?: string;
-  rows: OpinionRow[]; onRowsChange: (r: OpinionRow[]) => void;
-}> = ({ open, onOpenChange, titleMeta, opinionText, rows, onRowsChange }) => {
-  const [history, setHistory] = useState<OpinionRow[][]>([]);
-  const addRow = () => {
-    const newRows = [...rows, { text: "", main: "", sub: "", sentiment: "positive" }];
-    setHistory((h) => [...h, rows]); // เก็บประวัติก่อนแก้
-    onRowsChange(newRows);
-  };
-  const editCell = (i: number, k: keyof OpinionRow, v: string) => {
-    const copy = [...rows];
-    (copy[i] as any)[k] = v;
-    onRowsChange(copy);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0">
-        <div className="p-5">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="font-kanit text-lg">รายละเอียดความคิดเห็น</DialogTitle>
-          </DialogHeader>
-
-          {/* แถบหัวสีเขียวเหมือนรูป */}
-          {opinionText && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
-              <div className="text-sm text-emerald-700 font-kanit">{titleMeta || ""}</div>
-              <div className="text-gray-800 font-kanit">{opinionText}</div>
-            </div>
-          )}
-
-          {/* ตารางแยกประโยค/หมวด/หมวดย่อย/Sentiment (ตัวอักษร) */}
-          <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <div className="grid grid-cols-4 bg-gray-50 px-3 py-2 text-sm font-kanit text-gray-600">
-              <div>ประโยค</div><div>หมวดใหญ่</div><div>หมวดย่อย</div><div>Sentiment</div>
-            </div>
-            <div className="divide-y">
-              {rows.map((r, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2 px-3 py-2 text-sm">
-                  <Input value={r.text} onChange={(e) => editCell(i, "text", e.target.value)} className="h-8" />
-                  <Input value={r.main} onChange={(e) => editCell(i, "main", e.target.value)} className="h-8" />
-                  <Input value={r.sub} onChange={(e) => editCell(i, "sub", e.target.value)} className="h-8" />
-                  <Select value={r.sentiment} onValueChange={(v) => editCell(i, "sentiment", v)}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="positive" className="font-kanit">positive</SelectItem>
-                      <SelectItem value="negative" className="font-kanit">negative</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-              {rows.length === 0 && (
-                <div className="px-3 py-6 text-center text-sm text-gray-500 font-kanit">ยังไม่มีรายการ</div>
-              )}
-            </div>
-          </div>
-
-          {/* ปุ่ม “เพิ่ม” และ “ประวัติ” */}
-          <div className="mt-3 flex items-center gap-2">
-            <Button onClick={addRow} className="rounded-xl h-8 px-3">เพิ่ม</Button>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="rounded-xl h-8 px-3">ประวัติแก้ไข</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="text-sm font-kanit text-gray-700 mb-2">ประวัติ ({history.length})</div>
-                <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {history.map((snap, idx) => (
-                    <div key={idx} className="rounded border p-2">
-                      <div className="text-xs text-gray-500 font-kanit mb-1">เวอร์ชัน {idx + 1}</div>
-                      {snap.map((s, i) => (
-                        <div key={i} className="text-xs text-gray-700 font-kanit">• {s.text} — {s.main}/{s.sub} — {s.sentiment}</div>
-                      ))}
-                    </div>
-                  ))}
-                  {history.length === 0 && <div className="text-xs text-gray-500 font-kanit">ยังไม่มีประวัติ</div>}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* ไม่ทำปุ่มปิด */}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 /* ---------- CustomerOpinionsCard ---------- */
 const mockComments = [
-  {
-    id: "1",
-    meta: "ภาค16 • เขต กะทู้ • ป่าตอง",
-    time: "10 มิ.ย. 2025 09:14",
-    text: "พนักงานเป็นกันเอง",
-    sentiment: "positive" as const,
-    tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }],
-    report: {
-      user_id: "-",
-      branch: "ป่าตอง", province: "ภูเก็ต",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "พนักงานเป็นกันเอง",
-      main_category: "บริการดีเยี่ยม",
-      sub_category: "-",
-      sentiment: "positive",
-      meta: "กรุงเทพฯ • เขต 1 • สาขาสลิม",
-    },
-    detailRows: [
-      { text: "พนักงานเป็นกันเอง", main: "บริการ", sub: "ความเอาใจใส่", sentiment: "positive" as const },
-    ],
-  },
-  {
-    id: "2",
-    meta: "ภาค3 • เขต บางกอกใหญ่ • ท่าพระ",
-    time: "27 พ.ค. 2025 14:13",
-    text: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม",
-    sentiment: "positive" as const,
-    tags: [
+  { id: "1", meta: "ภาค16 • เขต กะทู้ • ป่าตอง", time: "10 มิ.ย. 2025 09:14", text: "พนักงานเป็นกันเอง", sentiment: "positive" as const, tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }] },
+  { id: "2", meta: "ภาค3 • เขต บางกอกใหญ่ • ท่าพระ", time: "27 พ.ค. 2025 14:13", text: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม", sentiment: "positive" as const, tags: [
       { label: "ความสามารถในการตอบคำถามหรือให้คำแนะนำ", tone: "positive" as const },
       { label: "ความรวดเร็วในการให้บริการ", tone: "positive" as const },
       { label: "ความสุภาพและมารยาทของพนักงาน", tone: "positive" as const },
-    ],
-    report: {
-      user_id: "-",
-      branch: "ท่าพระ", province: "กรุงเทพฯ",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "พี่เจ้าหน้าที่แนะนำดีค่ะ บริการรวดเร็ว ยิ้มแย้ม",
-      main_category: "บริการดีเยี่ยม",
-      sub_category: "-",
-      sentiment: "positive",
-      meta: "กรุงเทพฯ • เขต 1 • สาขาสลิม",
-    },
-    detailRows: [
-      { text: "แนะนำดี", main: "บริการ", sub: "ให้คำแนะนำ", sentiment: "positive" as const },
-      { text: "รวดเร็ว", main: "บริการ", sub: "ความรวดเร็ว", sentiment: "positive" as const },
-      { text: "ยิ้มแย้ม", main: "พนักงาน", sub: "มารยาท", sentiment: "positive" as const },
-    ],
-  },
-  {
-    id: "3",
-    meta: "ภาค16 • เขต หลังสวน • หลังสวน",
-    time: "06 พ.ค. 2025 14:35",
-    text: "บริการดีค่ะ",
-    sentiment: "positive" as const,
-    tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }],
-    report: {
-      user_id: "-",
-      branch: "หลังสวน", province: "ชุมพร",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "บริการดีค่ะ",
-      main_category: "บริการดีเยี่ยม",
-      sub_category: "-",
-      sentiment: "positive",
-      meta: "ชุมพร • เขต หลังสวน • สาขาหลังสวน",
-    },
-    detailRows: [
-      { text: "บริการดีค่ะ", main: "บริการ", sub: "ความประทับใจในการให้บริการ", sentiment: "positive" as const },
-    ],
-  },
-  {
-    id: "4",
-    meta: "ภาค5 • เขต พิษณุโลก • พิษณุโลก",
-    time: "03 พ.ค. 2025 11:22",
-    text: "ระบบล่ม รอนานมาก พนักงานไม่สามารถแก้ปัญหาได้ ต้องมาใหม่อีกครั้ง เสียเวลาเปล่า บริการแย่มาก",
-    sentiment: "negative" as const,
-    tags: [
-      { label: "ระบบ Core ของธนาคาร", tone: "negative" as const },
-      { label: "การจัดการและแก้ไขปัญหาเฉพาะหน้า", tone: "negative" as const },
-      { label: "ระยะเวลาอนุมัติ", tone: "negative" as const },
-    ],
-    report: {
-      user_id: "-",
-      branch: "พิษณุโลก", province: "พิษณุโลก",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "ระบบล่ม รอนานมาก พนักงานไม่สามารถแก้ปัญหาได้ ต้องมาใหม่อีกครั้ง เสียเวลาเปล่า บริการแย่มาก",
-      main_category: "ระบบธนาคารและเทคโนโลยี",
-      sub_category: "ระบบ Core ของธนาคาร",
-      sentiment: "negative",
-      meta: "พิษณุโลก • เขต 2 • สาขาพิษณุโลก",
-    },
-    detailRows: [
-      { text: "ระบบล่ม", main: "ระบบธนาคารและเทคโนโลยี", sub: "ระบบ Core ของธนาคาร", sentiment: "negative" as const },
-      { text: "รอนานมาก", main: "กระบวนการให้บริการ", sub: "ความพร้อมในการให้บริการ", sentiment: "negative" as const },
-      { text: "แก้ปัญหาไม่ได้", main: "พนักงานและบุคลากร", sub: "การจัดการและแก้ไขปัญหาเฉพาะหน้า", sentiment: "negative" as const },
-    ],
-  },
-  {
-    id: "5",
-    meta: "ภาค12 • เขต ขอนแก่น • ขอนแก่น",
-    time: "02 พ.ค. 2025 16:45",
-    text: "ขั้นตอนการสมัครเยอะ เอกสารเยอะ แต่พนักงานช่วยเหลือดี อธิบายชัดเจน สาขาสะอาด ที่นั่งรอสะดวก",
-    sentiment: "mixed" as const,
-    tags: [
-      { label: "ขั้นตอนการให้บริการ", tone: "negative" as const },
-      { label: "ภาระเอกสาร", tone: "negative" as const },
-      { label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const },
-      { label: "ความสะอาด", tone: "positive" as const },
-      { label: "ที่นั่งรอ", tone: "positive" as const },
-    ],
-    report: {
-      user_id: "-",
-      branch: "ขอนแก่น", province: "ขอนแก่น",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "ขั้นตอนการสมัครเยอะ เอกสารเยอะ แต่พนักงานช่วยเหลือดี อธิบายชัดเจน สาขาสะอาด ที่นั่งรอสะดวก",
-      main_category: "กระบวนการให้บริการ",
-      sub_category: "ขั้นตอนการให้บริการ",
-      sentiment: "negative", // รายงานใช้ค่าเดียว ไม่รองรับ mixed
-      meta: "ขอนแก่น • เขต กลางเมือง • สาขาขอนแก่น",
-    },
-    detailRows: [
-      { text: "ขั้นตอนการสมัครเยอะ", main: "กระบวนการให้บริการ", sub: "ขั้นตอนการให้บริการ", sentiment: "negative" as const },
-      { text: "เอกสารเยอะ", main: "กระบวนการให้บริการ", sub: "ภาระเอกสาร", sentiment: "negative" as const },
-      { text: "พนักงานช่วยเหลือดี", main: "พนักงานและบุคลากร", sub: "ความเอาใจใส่ในการให้บริการลูกค้า", sentiment: "positive" as const },
-      { text: "สาขาสะอาด", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ความสะอาด", sentiment: "positive" as const },
-      { text: "ที่นั่งรอสะดวก", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ที่นั่งรอ", sentiment: "positive" as const },
-    ],
-  },
-  {
-    id: "6",
-    meta: "ภาค14 • เขต ระยอง • ระยอง",
-    time: "21 เม.ย. 2025 15:18",
-    text: "ที่นั่งรอไม่พอ เสียงดังจากพื้นที่รีโนเวท แอร์ไม่ค่อยเย็น",
-    sentiment: "negative" as const,
-    tags: [
-      { label: "ที่นั่งรอ", tone: "negative" as const },
-      { label: "เสียง", tone: "negative" as const },
-      { label: "อุณหภูมิ", tone: "negative" as const },
-    ],
-    report: {
-      user_id: "-",
-      branch: "ระยอง", province: "ระยอง",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "ที่นั่งรอไม่พอ เสียงดังจากพื้นที่รีโนเวท แอร์ไม่ค่อยเย็น",
-      main_category: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก",
-      sub_category: "ที่นั่งรอ",
-      sentiment: "negative",
-      meta: "ระยอง • เขต เมือง • สาขาระยอง",
-    },
-    detailRows: [
-      { text: "ที่นั่งรอไม่พอ", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ที่นั่งรอ", sentiment: "negative" as const },
-      { text: "เสียงดัง", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "เสียง", sentiment: "negative" as const },
-      { text: "แอร์ไม่เย็น", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "อุณหภูมิ", sentiment: "negative" as const },
-    ],
-  },
-  {
-    id: "7",
-    meta: "ภาค1 • เขต จตุจักร • เซ็นทรัล ลาดพร้าว",
-    time: "12 ม.ค. 2025 14:32",
-    text: "สาขาสะอาด จัดคิวไว เจ้าหน้าที่สุภาพ",
-    sentiment: "positive" as const,
-    tags: [
-      { label: "ความสะอาด", tone: "positive" as const },
-      { label: "ความรวดเร็วในการให้บริการ", tone: "positive" as const },
-      { label: "ความสุภาพและมารยาทของพนักงาน", tone: "positive" as const },
-    ],
-    report: {
-      user_id: "-",
-      branch: "เซ็นทรัล ลาดพร้าว", province: "กรุงเทพฯ",
-      scores: [
-        { label: "การดูแลเอาใจใส่/ความสบายใจ", value: "0/5" },
-        { label: "การตอบคําถาม/ให้คําแนะนํา/ความเป็นมืออาชีพ", value: "0/5" },
-        { label: "ความรวดเร็ว (หลังเรียกคิว)", value: "0/5" },
-        { label: "ความถูกต้อง", value: "0/5" },
-      ],
-      opinion: "สาขาสะอาด จัดคิวไว เจ้าหน้าที่สุภาพ",
-      main_category: "บริการดีเยี่ยม",
-      sub_category: "-",
-      sentiment: "positive",
-      meta: "กรุงเทพฯ • เขต 1 • สาขาเซ็นทรัล ลาดพร้าว",
-    },
-    detailRows: [
-      { text: "สาขาสะอาด", main: "สภาพแวดล้อมและสิ่งอำนวยความสะดวก", sub: "ความสะอาด", sentiment: "positive" as const },
-      { text: "จัดคิวไว", main: "กระบวนการให้บริการ", sub: "ความพร้อมในการให้บริการ", sentiment: "positive" as const },
-      { text: "เจ้าหน้าที่สุภาพ", main: "พนักงานและบุคลากร", sub: "ความสุภาพและมารยาทของพนักงาน", sentiment: "positive" as const },
-    ],
-  },
+    ] },
+  { id: "3", meta: "ภาค16 • เขต หลังสวน • หลังสวน", time: "06 พ.ค. 2025 14:35", text: "บริการดีค่ะ", sentiment: "positive" as const, tags: [{ label: "ความเอาใจใส่ในการให้บริการลูกค้า", tone: "positive" as const }] },
+  { id: "4", meta: "ภาค16 • เขต กำแพงเพชร • กำแพงเพชร", time: "29 เม.ย. 2025 10:07", text: "ถ้าไม่มีมาติดต่อธนาคารจะไม่ทราบเลยว่ามาสุภาษาลูกค้า… ขอบคุณพนักงาน", sentiment: "mixed" as const, tags: [
+      { label: "ความถูกต้องในการให้บริการ", tone: "negative" as const },
+      { label: "ความประทับใจในการให้บริการ", tone: "positive" as const },
+    ] },
+  { id: "5", meta: "ภาค1 • เขต จตุจักร • เซ็นทรัล ลาดพร้าว", time: "12 ม.ค. 2025 14:32", text: "คนใช้บริการวันเสาร์อาทิตย์ค่อนข้างเยอะ จัดระบบรับคิว", sentiment: "negative" as const, tags: [{ label: "ขั้นตอนการให้บริการ", tone: "negative" as const }] },
 ];
-
 
 type FilterType = "all" | "positive" | "negative";
 const CustomerOpinionsCard: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-
-  // ใช้ state แทน const เพื่อให้ลบได้
-  const [comments, setComments] = useState(() => mockComments);
-
-  // ตัวแปรเปิดโมดัล
-  const [openReportId, setOpenReportId] = useState<string | null>(null);
-  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
-
-  const getFiltered = () => {
-    let base = comments;
-    if (activeFilter === "positive") base = base.filter((c) => c.sentiment === "positive");
-    if (activeFilter === "negative") base = base.filter((c) => c.sentiment === "negative");
-    return base;
+  const getFilteredComments = () => {
+    switch (activeFilter) {
+      case "positive":
+        return mockComments.filter((c) => c.sentiment === "positive");
+      case "negative":
+        return mockComments.filter((c) => c.sentiment === "negative");
+      default:
+        return mockComments;
+    }
   };
-  const filtered = getFiltered();
+  const filtered = getFilteredComments();
+  const [searchParams] = useSearchParams();
 
-  // ลบ (มียืนยัน)
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const doDelete = () => {
-    if (!pendingDelete) return;
-    setComments((prev) => prev.filter((c) => c.id !== pendingDelete));
-    setPendingDelete(null);
-  };
+  useEffect(() => {
+    const s = searchParams.get("sentiment");
+    if (s === "positive" || s === "negative") {
+      setActiveFilter(s as FilterType);
+    } else {
+      setActiveFilter("all");
+    }
+  }, [searchParams]);
 
-  // หาตัวที่กำลังเปิด
-  const currentReport = comments.find((c) => c.id === openReportId)?.report || null;
-  const currentDetail = comments.find((c) => c.id === openDetailId) || null;
+  const bgBySentiment = (s: string) =>
+    s === "positive" ? "bg-emerald-50" : s === "negative" ? "bg-rose-50" : s === "mixed" ? "bg-amber-50" : "bg-gray-50";
+  const tagClass = (tone: string) =>
+    tone === "positive" ? "bg-emerald-600 text-white" : tone === "negative" ? "bg-rose-600 text-white" : "bg-gray-600 text-white";
 
-  // ฟังก์ชันอัปเดตแถวใน OpinionDetailDialog
-  const updateDetailRows = (id: string, rows: OpinionRow[]) => {
-    setComments((prev) => prev.map((c) => (c.id === id ? { ...c, detailRows: rows } : c)));
-  };
+  // === ป๊อปอัพ 1: รายงาน (เดิม) ===
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<ReportDetail | null>(null);
 
-  const bgBySentiment = (s: string) => (s === "positive" ? "bg-emerald-50" : s === "negative" ? "bg-rose-50" : s === "mixed" ? "bg-amber-50" : "bg-gray-50");
-  const tagClass = (tone: string) => (tone === "positive" ? "bg-emerald-600 text-white" : tone === "negative" ? "bg-rose-600 text-white" : "bg-gray-600 text-white");
+  // === ป๊อปอัพ 2: รายละเอียดคอมเมนต์ + ตารางแก้ไข (เพิ่มปุ่ม เพิ่ม/ประวัติ และกากบาทลบ) ===
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [activeComment, setActiveComment] = useState<(typeof mockComments)[number] | null>(null);
+
+  // ชุดข้อมูลในตาราง (แก้ไขได้) — เริ่มต้นด้วยตัวอย่าง
+  const initialChunks = [
+    { text: "ไม่ได้เรียกคิวแต่ให้ไปหน้าคอนเตอร์ พูดจาไม่เหมาะสม", category: "กระบวนการให้บริการ", subcategory: "ขั้นตอนการให้บริการ", sentiment: "negative" as const },
+    { text: "พนักงานยิ้มแย้ม บริการรวดเร็ว", category: "พนักงานและบุคลากร", subcategory: "ความรวดเร็วในการให้บริการ", sentiment: "positive" as const },
+  ];
+  const [commentChunks, setCommentChunks] = useState<typeof initialChunks>(initialChunks);
+
+  // ปุ่มเพิ่ม (ป๊อปอัพ 3)
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    text: "",
+    category: "กระบวนการให้บริการ",
+    subcategory: "ขั้นตอนการให้บริการ",
+    sentiment: "negative" as "negative" | "positive",
+  });
+
+  // ป๊อปอัพ 4: ประวัติแก้ไข
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "add" | "update" | "delete">("all");
+  const historyLogs = [
+    { id: 1, time: "10 มิ.ย. 2025 09:20", user: "สมชาย", action: "add", summary: "เพิ่มประโยคใหม่", after: { text: "เพิ่มเคาน์เตอร์บริการด่วนสำหรับผู้สูงอายุ", category: "กระบวนการให้บริการ", subcategory: "ขั้นตอนการให้บริการ", sentiment: "positive" } },
+    { id: 2, time: "10 มิ.ย. 2025 09:30", user: "สมหญิง", action: "update", summary: "แก้ไขหมวดหมู่ของประโยค", before: { category: "ระบบธนาคารและเทคโนโลยี", subcategory: "ระบบเรียกคิวและจัดการคิว", sentiment: "negative" }, after: { category: "พนักงานและบุคลากร", subcategory: "ความสุภาพและมารยาทของพนักงาน", sentiment: "positive" } },
+    { id: 3, time: "10 มิ.ย. 2025 09:42", user: "วิชัย", action: "delete", summary: "ลบประโยคซ้ำ", before: { text: "ระบบช้า", category: "ระบบธนาคารและเทคโนโลยี", subcategory: "ความเสถียรของระบบ", sentiment: "negative" } },
+  ];
+  const filteredHistory = useMemo(
+    () => historyLogs.filter((l) => (historyFilter === "all" ? true : l.action === historyFilter)),
+    [historyFilter]
+  );
+
+  // ป๊อปอัพ 5: ยืนยันลบ (เมื่อกดกากบาทที่แถว)
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; idx: number | null }>({ open: false, idx: null });
+
+  // helper sentiment mapping
+  const toReportSentiment = (s: "positive" | "negative" | "mixed"): "positive" | "negative" | "neutral" => (s === "mixed" ? "neutral" : s);
 
   return (
-    <>
-      <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
-        <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)" }} />
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-kanit text-xl font-bold text-foreground">ความคิดเห็นลูกค้า</CardTitle>
-            <div className="flex gap-2">
-              <Button onClick={() => setActiveFilter("all")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "all" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>ทั้งหมด</Button>
-              <Button onClick={() => setActiveFilter("positive")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "positive" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงบวก</Button>
-              <Button onClick={() => setActiveFilter("negative")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "negative" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงลบ</Button>
-            </div>
+    <Card className="bg-white rounded-2xl shadow-card border border-gray-200 relative overflow-hidden">
+      <div className="h-2 w-full rounded-t-2xl" style={{ background: "linear-gradient(to right, #DF7AB0, #F9B5D3)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }} />
+
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="font-kanit text-xl font-bold text-foreground">ความคิดเห็นลูกค้า</CardTitle>
+          <div className="flex gap-2">
+            <Button onClick={() => setActiveFilter("all")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "all" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>ทั้งหมด</Button>
+            <Button onClick={() => setActiveFilter("positive")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "positive" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงบวก</Button>
+            <Button onClick={() => setActiveFilter("negative")} className={`text-xs h-8 px-3 font-kanit rounded-xl ${activeFilter === "negative" ? "from-[#DF7AB0] text-white hover:bg-[#DF7AB0]" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>เชิงลบ</Button>
           </div>
-          <p className="text-sm font-kanit text-gray-500 mt-2">พบความคิดเห็น {filtered.length} รายการ</p>
-        </CardHeader>
+        </div>
+        <p className="text-sm font-kanit text-gray-500 mt-2">พบความคิดเห็น {filtered.length} รายการ</p>
+      </CardHeader>
 
-        <CardContent>
-          <div className="max-h-[580px] overflow-y-auto space-y-4">
-            {filtered.map((c) => (
-              <div key={c.id} className={`${bgBySentiment(c.sentiment)} rounded-lg p-4`}>
-                <div className="flex justify-between items-start text-xs text-gray-500 mb-2">
-                  <span className="font-kanit">{c.meta}</span>
-                  <div className="flex items-center gap-2">
-                    {/* ปุ่มเอกสาร: รายละเอียดรายงาน */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 rounded-xl"
-                      title="รายละเอียดรายงาน"
-                      onClick={() => setOpenReportId(c.id)}
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
+      <CardContent>
+        <div className="max-h-[580px] overflow-y-auto space-y-4">
+          {filtered.map((c) => (
+            <div key={c.id} className={`${bgBySentiment(c.sentiment)} rounded-lg p-4`}>
+              <div className="flex justify-between items-start text-xs text-gray-500 mb-2">
+                <span className="font-kanit">{c.meta}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-kanit">{c.time}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg text-gray-600 hover:bg-gray-100"
+                    aria-label="สร้างรายงาน"
+                    onClick={() => {
+                      const md = parseMeta(c.meta); // ← ใช้ตัวช่วยใหม่
+                      setReportData({
+                        user_id: null,
 
-                    {/* ปุ่ม info: รายละเอียดความเห็น */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 rounded-xl"
-                      title="รายละเอียดความเห็น"
-                      onClick={() => setOpenDetailId(c.id)}
-                    >
-                      <Info className="h-4 w-4" />
-                    </Button>
+                        // ฟิลด์ใหม่
+                        business_line: "-",                   // ใส่จริงภายหลังได้
+                        district: md.district,
+                        region: md.region,
 
-                    {/* ปุ่มลบ */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 rounded-xl border-red-200 text-red-600 hover:bg-red-50"
-                      title="ลบรายการนี้"
-                      onClick={() => setPendingDelete(c.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                        branch: md.branch,                    // แสดงเป็น "สาขา" ใน dialog
+                        province: "",
+                        last_visit: "-",                      // ใส่ข้อมูลจริงเมื่อมี
+                        transaction_type: "-",               // ใส่ข้อมูลจริงเมื่อมี
+
+                        // คะแนน 0/5 ครบ 7 ข้อ (เติมอัตโนมัติ)
+                        scores: normalizeScores(),
+
+                        opinion: c.text,
+                        main_category: c.tags?.[0]?.label || "",
+                        sub_category: c.tags?.[0]?.label || "",
+                        sentiment: toReportSentiment(c.sentiment as any),
+                        meta: c.meta,
+                        created_at: c.time,
+                      });
+                      setReportOpen(true);
+                    }}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+
+                  {/* รายละเอียดความคิดเห็น */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg text-gray-600 hover:bg-gray-100"
+                    aria-label="รายละเอียดความคิดเห็น"
+                    onClick={() => {
+                      setActiveComment(c);
+                      setCommentChunks(initialChunks); // โหลดตัวอย่างเริ่มต้นทุกครั้ง
+                      setInfoOpen(true);
+                    }}
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <p className="mb-3 font-kanit text-gray-800 text-base leading-relaxed">{c.text}</p>
+              <div className="flex flex-wrap gap-1">
+                {c.tags.map((t, idx) => (
+                  <Badge key={idx} className={`${tagClass(t.tone)} font-kanit text-xs px-2 py-1 rounded-full`}>{t.label}</Badge>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-lg font-kanit text-gray-500">ไม่พบความคิดเห็นในกรองที่เลือก</p>
+            </div>
+          )}
+        </div>
+
+        {/* ===== POPUPS ===== */}
+
+        {/* รายละเอียดรายงาน (เดิม) — ไม่มีปุ่มปิด/ยกเลิกในตัวคอมโพเนนต์ */}
+        <ReportDetailDialog open={reportOpen} onOpenChange={setReportOpen} data={reportData} />
+
+        {/* รายละเอียดความคิดเห็น + ตารางแก้ไข */}
+        <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+          <DialogContent className="max-w-2xl p-0">
+            {activeComment && (
+              <div className="p-5">
+                <DialogHeader className="mb-2">
+                  <DialogTitle className="font-kanit text-lg">รายละเอียดความคิดเห็น</DialogTitle>
+                </DialogHeader>
+
+                {/* สรุปคอมเมนต์ */}
+                <div
+                  className={`rounded-xl p-4 border ${
+                    activeComment.sentiment === "positive"
+                      ? "bg-emerald-50 border-emerald-200"
+                      : activeComment.sentiment === "negative"
+                      ? "bg-rose-50 border-rose-200"
+                      : "bg-amber-50 border-amber-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span className="font-kanit">{activeComment.meta}</span>
+                    <span className="font-kanit">{activeComment.time}</span>
+                  </div>
+                  <div className="mt-2 text-base text-gray-800 font-kanit">{activeComment.text}</div>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {activeComment.tags?.map((t, i) => (
+                      <Badge key={i} className={`font-kanit text-xs px-2 py-1 rounded-full ${t.tone === "negative" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
+                        {t.label}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
 
-                <p className="mb-3 font-kanit text-gray-800 text-base leading-relaxed">{c.text}</p>
-
-                <div className="flex flex-wrap gap-1">
-                  {c.tags.map((t: any, idx: number) => (
-                    <Badge key={idx} className={`${tagClass(t.tone)} font-kanit text-xs px-2 py-1 rounded-full`}>{t.label}</Badge>
-                  ))}
+                {/* ตารางแก้ไขได้ + กากบาทลบ */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden mt-4">
+                  <div className="grid grid-cols-12 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
+                    <div className="col-span-6">ประโยค</div>
+                    <div className="col-span-2">หมวดใหญ่</div>
+                    <div className="col-span-2">หมวดย่อย</div>
+                    <div className="col-span-1">sentiment</div>
+                    <div className="col-span-1" />
+                  </div>
+                  <div className="divide-y">
+                    {commentChunks.map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-12 px-4 py-2 text-sm items-start">
+                        <div className="col-span-6 font-kanit text-gray-800 whitespace-pre-line">{row.text}</div>
+                        <div className="col-span-2 font-kanit text-gray-700">{row.category}</div>
+                        <div className="col-span-2 font-kanit text-gray-700">{row.subcategory}</div>
+                        <div className={`col-span-1 font-kanit ${row.sentiment === "negative" ? "text-rose-600" : "text-emerald-600"}`}>{row.sentiment}</div>
+                        <div className="col-span-1 justify-self-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-gray-600 hover:bg-gray-100"
+                            aria-label="ลบแถวนี้"
+                            onClick={() => setConfirmDelete({ open: true, idx })}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {commentChunks.length === 0 && (
+                      <div className="px-4 py-6 text-center text-sm text-gray-500">ไม่มีรายการ</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
 
-            {filtered.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-lg font-kanit text-gray-500">ไม่พบความคิดเห็นในกรองที่เลือก</p>
+                {/* แถวปุ่มล่าง — เพิ่ม / ประวัติ */}
+                <div className="flex items-center justify-between mt-4">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl" onClick={() => setAddOpen(true)}>
+                    เพิ่ม
+                  </Button>
+                  <Button className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl" onClick={() => setHistoryOpen(true)}>
+                    ประวัติแก้ไข
+                  </Button>
+                </div>
+
+                {/* ไม่มีปุ่มปิด/ยกเลิกในป๊อปอัพนี้ (คลิกฉากหลังเพื่อปิดได้) */}
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </DialogContent>
+        </Dialog>
 
-      {/* ===== Dialogs ===== */}
-      <ReportDetailDialog
-        open={!!openReportId}
-        onOpenChange={(v) => !v && setOpenReportId(null)}
-        data={currentReport}
-      />
+        {/* ป๊อปอัพ: เพิ่มประโยคใหม่ */}
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent className="max-w-lg p-0">
+            <div className="p-5">
+              <DialogHeader className="mb-2">
+                <DialogTitle className="font-kanit text-lg">เพิ่มประโยคใหม่</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-500 font-kanit">ประโยค</label>
+                  <textarea
+                    value={addForm.text}
+                    onChange={(e) => setAddForm((v) => ({ ...v, text: e.target.value }))}
+                    className="mt-1 w-full min-h-[100px] rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="พิมพ์ประโยค..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 font-kanit">หมวดใหญ่</label>
+                    <select
+                      value={addForm.category}
+                      onChange={(e) => setAddForm((v) => ({ ...v, category: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      {mainCategories.filter((m) => m !== "เลือกทั้งหมด").map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 font-kanit">หมวดย่อย</label>
+                    <select
+                      value={addForm.subcategory}
+                      onChange={(e) => setAddForm((v) => ({ ...v, subcategory: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      {subCategories.filter((s) => s !== "เลือกทั้งหมด").map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 font-kanit">sentiment</label>
+                    <select
+                      value={addForm.sentiment}
+                      onChange={(e) => setAddForm((v) => ({ ...v, sentiment: e.target.value as "negative" | "positive" }))}
+                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="positive">positive</option>
+                      <option value="negative">negative</option>
+                    </select>
+                  </div>
+                </div>
 
-      <OpinionDetailDialog
-        open={!!openDetailId}
-        onOpenChange={(v) => !v && setOpenDetailId(null)}
-        titleMeta={currentDetail?.meta}
-        opinionText={currentDetail?.text}
-        rows={currentDetail?.detailRows || []}
-        onRowsChange={(rows) => currentDetail && updateDetailRows(currentDetail.id, rows)}
-      />
+                <div className="flex items-center justify-end">
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+                    onClick={() => {
+                      if (addForm.text.trim()) {
+                        setCommentChunks((prev) => [...prev, addForm]);
+                        setAddForm({ text: "", category: "กระบวนการให้บริการ", subcategory: "ขั้นตอนการให้บริการ", sentiment: "negative" });
+                        setAddOpen(false);
+                      }
+                    }}
+                  >
+                    บันทึก
+                  </Button>
+                </div>
+                {/* ไม่มีปุ่มยกเลิก ตามสเปคเดิม (ปิดด้วยคลิกฉากหลังได้) */}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-      {/* ยืนยันการลบ */}
-      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-kanit">ยืนยันการลบ</AlertDialogTitle>
-            <AlertDialogDescription className="font-kanit">
-              คุณต้องการลบความคิดเห็นนี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex justify-end gap-2">
-            <AlertDialogCancel className="font-kanit">ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete} className="bg-red-600 hover:bg-red-700 font-kanit">
-              ลบ
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        {/* ป๊อปอัพ: ประวัติแก้ไข */}
+        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+          <DialogContent className="max-w-3xl p-0">
+            <div className="p-5">
+              <DialogHeader className="mb-2">
+                <DialogTitle className="font-kanit text-lg">ประวัติการแก้ไข</DialogTitle>
+              </DialogHeader>
+
+              <div className="mb-4 inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
+                {[
+                  { id: "all", label: "ทั้งหมด", active: "bg-gray-900 text-white" },
+                  { id: "add", label: "เพิ่ม", active: "bg-emerald-600 text-white" },
+                  { id: "update", label: "แก้ไข", active: "bg-sky-600 text-white" },
+                  { id: "delete", label: "ลบ", active: "bg-rose-600 text-white" },
+                ].map(({ id, label, active }) => (
+                  <Button
+                    key={id}
+                    variant="ghost"
+                    size="sm"
+                    className={`px-3 py-1.5 rounded-lg text-sm font-kanit ${historyFilter === id ? active : "text-gray-700 hover:bg-white"}`}
+                    onClick={() => setHistoryFilter(id as any)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="divide-y divide-gray-200">
+                {filteredHistory.map((log) => (
+                  <div key={log.id} className="py-3 flex items-start gap-3 text-sm">
+                    <div className="w-40 text-gray-500">{log.time}</div>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-800">{log.user} • {log.action}</div>
+                      <div className="text-gray-600">{log.summary}</div>
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-xl border border-gray-200 p-3">
+                          <div className="font-semibold mb-1">ก่อน</div>
+                          {log.before ? <pre className="whitespace-pre-wrap">{JSON.stringify(log.before, null, 2)}</pre> : <div className="text-gray-400 italic">— ไม่มี —</div>}
+                        </div>
+                        <div className="rounded-xl border border-gray-200 p-3">
+                          <div className="font-semibold mb-1">หลัง</div>
+                          {log.after ? <pre className="whitespace-pre-wrap">{JSON.stringify(log.after, null, 2)}</pre> : <div className="text-gray-400 italic">— ไม่มี —</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {filteredHistory.length === 0 && <div className="py-10 text-center text-gray-500">ไม่มีรายการในหมวดนี้</div>}
+              </div>
+              {/* ไม่มีปุ่มปิด/ยกเลิก */}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ป๊อปอัพยืนยันลบ (Alert) — มีปุ่มยืนยัน/ยกเลิก */}
+        <AlertDialog open={confirmDelete.open} onOpenChange={(o) => setConfirmDelete((p) => ({ ...p, open: o }))}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-kanit">ยืนยันการลบ</AlertDialogTitle>
+              <AlertDialogDescription className="font-kanit">
+                ต้องการลบประโยคนี้จริงหรือไม่? การลบจะไม่สามารถย้อนกลับได้
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex justify-end gap-2">
+              <AlertDialogCancel className="font-kanit">ยกเลิก</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-rose-600 hover:bg-rose-700 text-white font-kanit"
+                onClick={() => {
+                  if (confirmDelete.idx != null) {
+                    setCommentChunks((prev) => prev.filter((_, i) => i !== confirmDelete.idx));
+                  }
+                  setConfirmDelete({ open: false, idx: null });
+                }}
+              >
+                ลบ
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -1838,19 +1962,53 @@ const location = useLocation();
     setIsOpen(false);
     }, [location.pathname, location.hash]);
 
-  // Year/Month filters (Buddhist year) — align with Dashboard header controls if needed
-  const currentYear = new Date().getFullYear() + 543;
-  const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(
-    currentYear >= 2567 && currentYear <= 2568 ? currentYear.toString() : "2568"
-  );
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
-  const thaiMonths = [
-    { value: "1", label: "มกราคม" }, { value: "2", label: "กุมภาพันธ์" }, { value: "3", label: "มีนาคม" },
-    { value: "4", label: "เมษายน" }, { value: "5", label: "พฤษภาคม" }, { value: "6", label: "มิถุนายน" },
-    { value: "7", label: "กรกฎาคม" }, { value: "8", label: "สิงหาคม" }, { value: "9", label: "กันยายน" },
-    { value: "10", label: "ตุลาคม" }, { value: "11", label: "พฤศจิกายน" }, { value: "12", label: "ธันวาคม" },
-  ];
+// Year/Month filters (B.E.) — same behavior as Dashboard (dynamic + block future)
+const currentYear = new Date().getFullYear() + 543;
+const currentMonth = new Date().getMonth() + 1;
+
+const baseYear = 2567; // ปีเริ่มต้นของข้อมูล
+const years = useMemo(
+  () =>
+    Array.from(
+      { length: Math.max(1, currentYear - baseYear + 1) },
+      (_, i) => String(baseYear + i)
+    ),
+  [currentYear]
+);
+
+const [selectedYear, setSelectedYear] = useState<string>(
+  years.includes(String(currentYear)) ? String(currentYear) : years[years.length - 1]
+);
+const [selectedMonth, setSelectedMonth] = useState<string>(String(currentMonth));
+
+const thaiMonths = [
+  { value: "1", label: "มกราคม" }, { value: "2", label: "กุมภาพันธ์" }, { value: "3", label: "มีนาคม" },
+  { value: "4", label: "เมษายน" }, { value: "5", label: "พฤษภาคม" }, { value: "6", label: "มิถุนายน" },
+  { value: "7", label: "กรกฎาคม" }, { value: "8", label: "สิงหาคม" }, { value: "9", label: "กันยายน" },
+  { value: "10", label: "ตุลาคม" }, { value: "11", label: "พฤศจิกายน" }, { value: "12", label: "ธันวาคม" },
+];
+
+const availableMonths = useMemo(() => {
+  // ถ้าเป็นปีปัจจุบัน ให้เลือกได้ถึงเดือนปัจจุบันเท่านั้น
+  if (parseInt(selectedYear, 10) === currentYear) {
+    return thaiMonths.filter(m => parseInt(m.value, 10) <= currentMonth);
+  }
+  // ปีอดีต เลือกได้ครบ 12 เดือน
+  return thaiMonths;
+}, [selectedYear, currentYear, currentMonth]);
+
+useEffect(() => {
+  // กันการเผลอเลือกอนาคต
+  if (parseInt(selectedYear, 10) > currentYear) {
+    setSelectedYear(String(currentYear));
+  }
+  if (
+    parseInt(selectedYear, 10) === currentYear &&
+    parseInt(selectedMonth, 10) > currentMonth
+  ) {
+    setSelectedMonth(String(currentMonth));
+  }
+}, [selectedYear, selectedMonth, currentYear, currentMonth]);
 
   // Filters for alternative section
   const [filters, setFilters] = useState<FilterState>({
@@ -1941,31 +2099,38 @@ const location = useLocation();
             </div>
             {/* Year/Month controls — mirror Dashboard */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-kanit text-muted-foreground">ปี</label>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-28 bg-white border border-border rounded-2xl shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-border rounded-xl shadow-lg">
-                    <SelectItem value="2567" className="font-kanit hover:bg-muted/50 focus:bg-muted/50">2567</SelectItem>
-                    <SelectItem value="2568" className="font-kanit hover:bg-muted/50 focus:bg-muted/50">2568</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-kanit text-muted-foreground">เดือน</label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-32 bg-white border border-border rounded-2xl shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-border rounded-xl shadow-lg max-h-[300px]">
-                    {thaiMonths.map((m) => (
-                      <SelectItem key={m.value} value={m.value} className="font-kanit hover:bg-muted/50 focus:bg-muted/50">{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  {/* ปี */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-kanit text-muted-foreground">ปี</label>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                      <SelectTrigger className="w-28 bg-white border border-border rounded-2xl shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-border rounded-xl shadow-lg">
+                        {years.map((y) => (
+                          <SelectItem key={y} value={y} className="font-kanit hover:bg-muted/50 focus:bg-muted/50">
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* เดือน */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-kanit text-muted-foreground">เดือน</label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger className="w-32 bg-white border border-border rounded-2xl shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-border rounded-xl shadow-lg max-h-[300px]">
+                        {availableMonths.map((m) => (
+                          <SelectItem key={m.value} value={m.value} className="font-kanit hover:bg-muted/50 focus:bg-muted/50">
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
             </div>
           </div>
 
@@ -1999,20 +2164,38 @@ const location = useLocation();
         </div>
       </main>
 
-      {/* Footer (mirror Dashboard) */}
+      {/* Footer */}
       <footer style={{ backgroundColor: "#ECEFF1" }} className="border-t border-border py-3 px-6">
-        <div className="container mx-auto p-6 space-y-8">
+        <div className="container mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col md:flex-row md:items-center gap-4 text-center md:text-left">
-              <span className="text-sm text-muted-foreground font-kanit">© 2024 Customer Dashboard. สงวนลิขสิทธิ์.</span>
+              <span className="text-sm text-muted-foreground font-kanit">
+                © 2024 Customer Dashboard. สงวนลิขสิทธิ์.
+              </span>
               <div className="flex flex-col sm:flex-row items-center gap-2 text-sm">
-                <a href="#" className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200" aria-label="นโยบายความเป็นส่วนตัว">นโยบายความเป็นส่วนตัว</a>
+                <a
+                  href="#"
+                  className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
+                >
+                  นโยบายความเป็นส่วนตัว
+                </a>
                 <span className="hidden sm:inline text-muted-foreground">|</span>
-                <a href="#" className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200" aria-label="เงื่อนไขการใช้งาน">เงื่อนไขการใช้งาน</a>
+                <a
+                  href="#"
+                  className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
+                >
+                  เงื่อนไขการใช้งาน
+                </a>
                 <span className="hidden sm:inline text-muted-foreground">|</span>
-                <a href="#" className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200" aria-label="ติดต่อเรา">ติดต่อเรา</a>
+                <a
+                  href="#"
+                  className="text-muted-foreground font-kanit hover:text-primary hover:underline transition-colors duration-200"
+                >
+                  ติดต่อเรา
+                </a>
               </div>
             </div>
+
             <div className="text-center md:text-right">
               <span className="text-sm text-muted-foreground font-kanit">เวอร์ชัน 2.1.0</span>
             </div>

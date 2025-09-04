@@ -171,7 +171,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onDateRang
               onChange={(e) => onDateRangeChange({ ...dateRange, from: formatDateThai(e.target.value) })}
               className="pr-8 text-sm"
             />
-            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
         <div>
@@ -183,7 +182,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onDateRang
               onChange={(e) => onDateRangeChange({ ...dateRange, to: formatDateThai(e.target.value) })}
               className="pr-8 text-sm"
             />
-            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -230,19 +228,46 @@ const TimePeriodCard: React.FC = () => {
 
   return (
     <Card className="bg-white rounded-2xl shadow-card border border-gray-200">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold font-kanit text-gray-800">ช่วงเวลา</CardTitle>
+      <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-lg font-semibold font-kanit text-gray-800">
+          ช่วงเวลา
+        </CardTitle>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="รีเซ็ตช่วงเวลา"
+          onClick={() => {
+            setSelectedPeriodType("ทั้งหมด");
+            setSelectedMonthYear("");
+            setSelectedRelativeTime("");
+            setDateRange({ from: "", to: "" });
+          }}
+          className="h-8 w-8 rounded-xl hover:bg-gray-100"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        <CFSingleSelect label="" options={timePeriodOptions} selectedItem={selectedPeriodType} onSelectionChange={(v) => {
-          setSelectedPeriodType(v);
-          setSelectedMonthYear("");
-          setSelectedRelativeTime("");
-          setDateRange({ from: "", to: "" });
-        }} />
+        <CFSingleSelect
+          label=""
+          options={timePeriodOptions}
+          selectedItem={selectedPeriodType}
+          onSelectionChange={(v) => {
+            setSelectedPeriodType(v);
+            setSelectedMonthYear("");
+            setSelectedRelativeTime("");
+            setDateRange({ from: "", to: "" });
+          }}
+        />
+
         {renderSubDropdown()}
+
         {selectedPeriodType === "กำหนดช่วงเวลาเอง" && dateRange.from && dateRange.to && (
-          <p className="text-xs text-gray-500 font-kanit mt-2">กำหนดช่วงเวลาเอง: {dateRange.from} - {dateRange.to}</p>
+          <p className="text-xs text-gray-500 font-kanit mt-2">
+            กำหนดช่วงเวลาเอง: {dateRange.from} - {dateRange.to}
+          </p>
         )}
       </CardContent>
     </Card>

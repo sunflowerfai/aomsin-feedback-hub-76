@@ -9,11 +9,11 @@ import Dashboard from "./pages/Dashboard";
 import MarketConduct from "./pages/MarketConduct";
 import NotFound from "./pages/NotFound";
 import Aichatbot from "./pages/Aichatbot";
-import RegionalDashboardOnePage from "./pages/RegionalDashboardOnePage";
+import RegionalDashboard from "./pages/RegionalDashboard";
 import StrongComplaints from "./pages/StrongComplaints";
 import CustomerFeedback from "./pages/CustomerFeedback";
 import ForbiddenPage from "./pages/ForbiddenPage";
-
+import ReferenceTables from "./pages/ReferenceTables";
 import { AuthProvider } from "@/auth/AuthContext";
 import RequireAdmin from "@/auth/RequireAdmin";
 
@@ -32,12 +32,12 @@ const App = () => (
             <Route path="/" element={<AomsinLogin />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/market-conduct" element={<MarketConduct />} />
-            <Route path="/regional" element={<RegionalDashboardOnePage />} />
+            <Route path="/regional" element={<RegionalDashboard />} />
             <Route path="/strong-complaints" element={<StrongComplaints />} />
             <Route path="/customer-feedback" element={<CustomerFeedback />} />
-            <Route path="/403" element={<ForbiddenPage />} />
+            <Route path="/reference-tables" element={<ReferenceTables />} />
             <Route path="/ai-chatbot" element={<Aichatbot />} />
-
+            <Route path="/403" element={<ForbiddenPage />} />
             {/* fallback (must be last) */}
             <Route path="*" element={<NotFound />} />
           </Routes>

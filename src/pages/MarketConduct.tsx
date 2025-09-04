@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 /* UI (shadcn) */
@@ -11,6 +11,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /* Dashboard shared components */
 import { MiniRailSidebar } from "@/components/dashboard/MiniRailSidebar";
@@ -28,6 +34,7 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  FileText,
 } from "lucide-react";
 
 /* Charts */
@@ -46,6 +53,50 @@ import {
 } from "recharts";
 
 /* ====================================================================== */
+/*                 Helpers + Types สำหรับ “สร้างรายงาน”                  */
+/* ====================================================================== */
+type ReportDetail = {
+  user_id?: string | null;
+
+  // ฟิลด์ใหม่ตามรูป
+  business_line?: string;   // สายกิจ
+  district?: string;        // เขต
+  region?: string;          // ภาค
+
+  branch?: string;          // สาขา
+  province?: string;
+
+  last_visit?: string;      // เข้าใช้บริการครั้งล่าสุด
+  transaction_type?: string; // ทำธุรกรรมประเภทใด
+
+  scores?: { label: string; value: string }[]; // 0/5
+  opinion?: string;
+  main_category?: string;
+  sub_category?: string;
+  sentiment?: "positive" | "negative" | "neutral";
+  created_at?: string;
+  meta?: string; // ใช้แสดงแถบหัวสีเขียว
+};
+
+const SCORE_TEMPLATE = [
+  "การดูแลเอาใจใส่/ความสบายใจ",
+  "การตอบคำถาม/ให้คำแนะนำ/ความเป็นมืออาชีพ",
+  "ความรวดเร็ว (หลังเรียกคิว)",
+  "ความถูกต้อง",
+  "ความพร้อมของเครื่องมือ (ATM/ADM/Passbook)",
+  "สภาพแวดล้อมของสาขา",
+  "ความประทับใจโดยรวม",
+] as const;
+
+const normalizeScores = (scores?: { label: string; value: string }[]) => {
+  const map = new Map(scores?.map((s) => [s.label.trim(), s.value.trim()]));
+  return SCORE_TEMPLATE.map((label) => ({
+    label,
+    value: map.get(label) || "0/5",
+  }));
+};
+
+/* ====================================================================== */
 /*                         KPI small card (local)                         */
 /* ====================================================================== */
 interface KPICardProps {
@@ -54,8 +105,15 @@ interface KPICardProps {
   percentage: number;
   trend: "up" | "down";
   previousValue?: string;
-  tone?: "blue" | "green" | "red" | "yellow"; // ✅ เพิ่ม
+  tone?: "blue" | "green" | "red" | "yellow";
 }
+
+const KPI_THEME = {
+  blue:   { bg: "hsl(var(--kpi-blue-bg))",   border: "hsl(var(--kpi-blue-border))",   text: "hsl(var(--kpi-blue-text))"   },
+  green:  { bg: "hsl(var(--kpi-green-bg))",  border: "hsl(var(--kpi-green-border))",  text: "hsl(var(--kpi-green-text))"  },
+  yellow: { bg: "hsl(var(--kpi-yellow-bg))", border: "hsl(var(--kpi-yellow-border))", text: "hsl(var(--kpi-yellow-text))" },
+  red:    { bg: "hsl(var(--kpi-red-bg))",    border: "hsl(var(--kpi-red-border))",    text: "hsl(var(--kpi-red-text))"    },
+} as const;
 
 const SmallKPICard: React.FC<KPICardProps> = ({
   title,
@@ -65,31 +123,28 @@ const SmallKPICard: React.FC<KPICardProps> = ({
   previousValue,
   tone,
 }) => {
+  const scheme = KPI_THEME[(tone ?? "blue") as keyof typeof KPI_THEME];
   const TrendIcon = trend === "up" ? TrendingUp : TrendingDown;
-  const tColor = trend === "up" ? "text-green-600" : "text-red-600";
-
-  const toneBg: Record<NonNullable<KPICardProps["tone"]>, string> = {
-    blue: "bg-blue-50 border-blue-100",
-    green: "bg-green-50 border-green-100",
-    red: "bg-rose-50 border-rose-100",
-    yellow: "bg-amber-50 border-amber-100",
-  };
-  // ถ้าไม่กำหนด tone จะ fallback ตาม trend (ขึ้น=เขียว, ลง=ชมพู)
-  const bgClass = tone ? toneBg[tone] : trend === "up" ? toneBg.green : toneBg.red;
+  const trendColor = trend === "up" ? "text-green-600" : "text-red-600";
 
   return (
-    <div className={`rounded-2xl shadow-soft p-5 border ${bgClass}`}>
-      <h3 className="text-sm font-medium text-muted-foreground mb-2 font-kanit">
+    <div
+      className="rounded-2xl shadow-soft p-5 border"
+      style={{ background: scheme.bg, borderColor: scheme.border }}
+    >
+      <h3 className="mb-2 font-kanit text-sm font-medium" style={{ color: scheme.text }}>
         {title}
       </h3>
       <div className="flex items-end justify-between">
         <div>
-          <p className="font-bold text-foreground font-kanit text-2xl">{value}</p>
-          <div className={`flex items-center gap-1 mt-1 ${tColor}`}>
-            <TrendIcon className="w-4 h-4" />
+          <p className="font-kanit font-extrabold leading-none" style={{ color: scheme.text, fontSize: "28px" }}>
+            {value}
+          </p>
+          <div className={`mt-2 flex items-center gap-1 ${trendColor}`}>
+            <TrendIcon className="h-4 w-4" />
             <span className="text-sm font-medium">{Math.abs(percentage)}%</span>
             {previousValue && (
-              <span className="text-xs text-muted-foreground ml-1">
+              <span className="ml-1 text-xs text-muted-foreground">
                 ({previousValue})
               </span>
             )}
@@ -100,41 +155,12 @@ const SmallKPICard: React.FC<KPICardProps> = ({
   );
 };
 
-
-const KPISection: React.FC<{ }> = () => {
+const KPISection: React.FC<{}> = () => {
   const kpiData: KPICardProps[] = [
-    {
-      title: "ความคิดเห็นทั้งหมด",
-      value: "1,247",
-      percentage: 12.5,
-      trend: "up",
-      previousValue: "1,108",
-      tone: "blue",    // ✅ ฟ้า (เหมือนภาพ)
-    },
-    {
-      title: "ความคิดเห็นเชิงบวก",
-      value: "856",
-      percentage: 8.3,
-      trend: "up",
-      previousValue: "791",
-      tone: "green",   // ✅ เขียวอ่อน
-    },
-    {
-      title: "ความคิดเห็นเชิงลบ",
-      value: "391",
-      percentage: 5.2,
-      trend: "down",
-      previousValue: "317",
-      tone: "red",     // ✅ ชมพูอ่อน (แดงอ่อน)
-    },
-    {
-      title: "Top Issue",
-      value: "การให้บริการ",
-      percentage: 15.7,
-      trend: "up",
-      previousValue: "ความถูกต้อง",
-      tone: "yellow",  // ✅ เหลืองครีม
-    },
+    { title: "ความคิดเห็นทั้งหมด", value: "1,247", percentage: 12.5, trend: "up",   previousValue: "1,108", tone: "blue"   },
+    { title: "ความคิดเห็นเชิงบวก", value: "856",   percentage: 8.3,  trend: "up",   previousValue: "791",   tone: "green"  },
+    { title: "ความคิดเห็นเชิงลบ", value: "391",   percentage: 5.2,  trend: "down", previousValue: "317",   tone: "red"    },
+    { title: "Top Issue",         value: "การให้บริการ", percentage: 15.7, trend: "up", previousValue: "ความถูกต้อง", tone: "yellow" },
   ];
 
   return (
@@ -147,7 +173,6 @@ const KPISection: React.FC<{ }> = () => {
     </div>
   );
 };
-
 
 /* ====================================================================== */
 /*                            Opinion Pie Chart                            */
@@ -268,29 +293,55 @@ const RegionBarChart: React.FC = () => {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
 
-  const categories = ["เลือกทั้งหมด", "ไม่หลอกลวง", "ไม่เอาเปรียบ", "ไม่บังคับ", "ไม่รบกวน"];
+  const categories = ["เลือกทั้งหมด", "ไม่หลอกลวง", "ไม่เอาเปรียบ", "ไม่บังคับ", "ไม่รบกวน"] as const;
+  type CategoryKey = Exclude<(typeof categories)[number], "เลือกทั้งหมด">;
 
-  const regionData = [
+  type RegionScore = { region: string; gray: number; pink: number };
+  const BASE_REGION_DATA: RegionScore[] = [
     { region: "ภาค 1", gray: 4.75, pink: 2.75 },
     { region: "ภาค 2", gray: 3.25, pink: 4.75 },
-    { region: "ภาค 3", gray: 4.0, pink: 4.5 },
-    { region: "ภาค 4", gray: 3.5, pink: 3.0 },
-    { region: "ภาค 5", gray: 4.5, pink: 4.75 },
-    { region: "ภาค 6", gray: 4.75, pink: 4.5 },
+    { region: "ภาค 3", gray: 4.0,  pink: 4.5  },
+    { region: "ภาค 4", gray: 3.5,  pink: 3.0  },
+    { region: "ภาค 5", gray: 4.5,  pink: 4.75 },
+    { region: "ภาค 6", gray: 4.75, pink: 4.5  },
     { region: "ภาค 7", gray: 2.75, pink: 2.75 },
     { region: "ภาค 8", gray: 3.25, pink: 2.75 },
     { region: "ภาค 9", gray: 3.25, pink: 4.75 },
     { region: "ภาค 10", gray: 4.75, pink: 3.25 },
-    { region: "ภาค 11", gray: 3.5, pink: 3.5 },
-    { region: "ภาค 12", gray: 4.5, pink: 4.25 },
-    { region: "ภาค 13", gray: 4.0, pink: 3.75 },
+    { region: "ภาค 11", gray: 3.5,  pink: 3.5  },
+    { region: "ภาค 12", gray: 4.5,  pink: 4.25 },
+    { region: "ภาค 13", gray: 4.0,  pink: 3.75 },
     { region: "ภาค 14", gray: 4.75, pink: 4.75 },
-    { region: "ภาค 15", gray: 3.0, pink: 2.75 },
-    { region: "ภาค 16", gray: 3.5, pink: 3.25 },
-    { region: "ภาค 17", gray: 3.25, pink: 3.0 },
+    { region: "ภาค 15", gray: 3.0,  pink: 2.75 },
+    { region: "ภาค 16", gray: 3.5,  pink: 3.25 },
+    { region: "ภาค 17", gray: 3.25, pink: 3.0  },
     { region: "ภาค 18", gray: 4.75, pink: 4.25 },
   ];
+
+  const CAT_CONST: Record<CategoryKey, number> = {
+    "ไม่หลอกลวง": 1.15,
+    "ไม่เอาเปรียบ": 0.9,
+    "ไม่บังคับ": 1.35,
+    "ไม่รบกวน": 0.7,
+  };
+
+  const clamp2to5 = (x: number) => Math.max(2, Math.min(5, +x.toFixed(2)));
+
+  function genCategoryData(cat: CategoryKey): RegionScore[] {
+    const k = CAT_CONST[cat];
+    return BASE_REGION_DATA.map((r, i) => {
+      const w = Math.sin((i + 1) * k) * 0.6;
+      const g = clamp2to5(r.gray + w * 0.45 - 0.05);
+      const p = clamp2to5(r.pink + w * 0.45 + 0.05);
+      return { region: r.region, gray: g, pink: p };
+    });
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -320,6 +371,12 @@ const RegionBarChart: React.FC = () => {
     setFocusedIndex(-1);
     buttonRef.current?.focus();
   };
+
+  const chartData = useMemo<RegionScore[]>(() => {
+    return selectedCategory === "เลือกทั้งหมด"
+      ? BASE_REGION_DATA
+      : genCategoryData(selectedCategory as any);
+  }, [selectedCategory]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isDropdownOpen) {
@@ -402,74 +459,180 @@ const RegionBarChart: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <svg
-            width="100%"
-            height="240"
-            viewBox="0 0 960 240"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="block"
-          >
-            <g>
-              <line x1="40" y1="0" x2="40" y2="200" stroke="#E5E7EB" />
-              <line x1="40" y1="40" x2="920" y2="40" stroke="#E5E7EB" strokeDasharray="4 4" />
-              <line x1="40" y1="80" x2="920" y2="80" stroke="#E5E7EB" strokeDasharray="4 4" />
-              <line x1="40" y1="120" x2="920" y2="120" stroke="#E5E7EB" strokeDasharray="4 4" />
-              <line x1="40" y1="160" x2="920" y2="160" stroke="#E5E7EB" strokeDasharray="4 4" />
-              <line x1="40" y1="200" x2="920" y2="200" stroke="#E5E7EB" strokeDasharray="4 4" />
-              <text x="20" y="205" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">0</text>
-              <text x="20" y="165" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">1</text>
-              <text x="20" y="125" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">2</text>
-              <text x="20" y="85"  fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">3</text>
-              <text x="20" y="45"  fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">4</text>
-              <text x="20" y="5"   fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">5</text>
-            </g>
+        <div className="w-full h-[420px] md:h-[460px]">
+          {(() => {
+            const VB_HEIGHT = 270;
+            const GRID_HEIGHT = 200;
+            const MARGIN_LEFT = 50;
+            const MARGIN_RIGHT = 40;
+            const BAR_W = 15;
+            const GAP_IN_GROUP = 20;
+            const GROUP_WIDTH = GAP_IN_GROUP + BAR_W;
+            const STEP = 45;
 
-            <g transform="translate(50, 200) scale(1, -1)">
-              {regionData.map((region, index) => {
-                const x = index * 45;
-                const grayHeight = (region.gray / 5) * 200;
-                const pinkHeight = (region.pink / 5) * 200;
-                return (
-                  <g key={region.region}>
-                    <rect x={x} y="0" width="15" height={grayHeight} fill="#D1D5DB" rx="2" ry="2" />
-                    <rect x={x + 20} y="0" width="15" height={pinkHeight} rx="2" ry="2" fill="url(#pinkGradient)" />
-                  </g>
-                );
-              })}
-            </g>
+            const vbWidth =
+              MARGIN_LEFT + MARGIN_RIGHT +
+              (chartData.length > 0 ? (chartData.length - 1) * STEP + GROUP_WIDTH : 0);
 
-            <g transform="translate(50, 210)">
-              {regionData.map((region, index) => {
-                const x = index * 45 + 7;
-                return (
-                  <text
-                    key={region.region}
-                    x={x}
-                    y="0"
-                    fill="#6B7280"
-                    fontSize="10"
-                    fontFamily="Kanit"
-                    transform={`rotate(30 ${x} 0)`}
-                    textAnchor="start"
-                  >
-                    {region.region}
-                  </text>
-                );
-              })}
-            </g>
+            const gridX1 = MARGIN_LEFT;
+            const gridX2 = vbWidth - MARGIN_RIGHT;
+            const yLabelX = gridX1 - 20;
+            const xLabelY = GRID_HEIGHT + 28;
 
-            <defs>
-              <linearGradient id="pinkGradient" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-                <stop stopColor="#FF0080" />
-                <stop offset="1" stopColor="#FF66B2" />
-              </linearGradient>
-            </defs>
-          </svg>
+            return (
+              <svg
+                width="100%"
+                height="100%"
+                viewBox={`0 0 ${vbWidth} ${VB_HEIGHT}`}
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="block"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <g>
+                  <line x1={gridX1} y1="0" x2={gridX1} y2={GRID_HEIGHT} stroke="#E5E7EB" />
+                  <line x1={gridX1} y1="40"  x2={gridX2} y2="40"  stroke="#E5E7EB" strokeDasharray="4 4" />
+                  <line x1={gridX1} y1="80"  x2={gridX2} y2="80"  stroke="#E5E7EB" strokeDasharray="4 4" />
+                  <line x1={gridX1} y1="120" x2={gridX2} y2="120" stroke="#E5E7EB" strokeDasharray="4 4" />
+                  <line x1={gridX1} y1="160" x2={gridX2} y2="160" stroke="#E5E7EB" strokeDasharray="4 4" />
+                  <line x1={gridX1} y1="200" x2={gridX2} y2="200" stroke="#E5E7EB" strokeDasharray="4 4" />
+                  <text x={yLabelX} y="205" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">0</text>
+                  <text x={yLabelX} y="165" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">1</text>
+                  <text x={yLabelX} y="125" fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">2</text>
+                  <text x={yLabelX} y="85"  fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">3</text>
+                  <text x={yLabelX} y="45"  fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">4</text>
+                  <text x={yLabelX} y="5"   fill="#9CA3AF" fontSize="10" fontFamily="Kanit" textAnchor="middle">5</text>
+                </g>
+
+                <g key={selectedCategory} transform={`translate(${MARGIN_LEFT}, ${GRID_HEIGHT}) scale(1, -1)`}>
+                  {chartData.map((region, index) => {
+                    const targetGray = (region.gray / 5) * GRID_HEIGHT;
+                    const targetPink = (region.pink / 5) * GRID_HEIGHT;
+                    const grayHeight = mounted ? targetGray : 0;
+                    const pinkHeight = mounted ? targetPink : 0;
+
+                    return (
+                      <g key={region.region}>
+                        <rect
+                          x={index * STEP}
+                          y="0"
+                          width={BAR_W}
+                          height={grayHeight}
+                          fill="#D1D5DB"
+                          rx="2"
+                          ry="2"
+                          style={{ transition: "height 520ms cubic-bezier(0.22,1,0.36,1)", transitionDelay: `${index * 18}ms` }}
+                        />
+                        <rect
+                          x={index * STEP + GAP_IN_GROUP}
+                          y="0"
+                          width={BAR_W}
+                          height={pinkHeight}
+                          fill="url(#pinkGradient)"
+                          rx="2"
+                          ry="2"
+                          style={{ transition: "height 520ms cubic-bezier(0.22,1,0.36,1)", transitionDelay: `${80 + index * 18}ms` }}
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+
+                <g transform={`translate(${MARGIN_LEFT}, 0)`} pointerEvents="none">
+                  {chartData.map((region, index) => {
+                    const cx = index * STEP + GROUP_WIDTH / 2;
+                    return (
+                      <text
+                        key={`xlabel-${region.region}-${index}`}
+                        x={cx}
+                        y={xLabelY}
+                        fill="#6B7280"
+                        fontSize="10"
+                        fontFamily="Kanit"
+                        textAnchor="end"
+                        transform={`rotate(-35, ${cx}, ${xLabelY})`}
+                      >
+                        {region.region}
+                      </text>
+                    );
+                  })}
+                </g>
+
+                <defs>
+                  <linearGradient id="pinkGradient" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+                    <stop stopColor="#FF0080" />
+                    <stop offset="1" stopColor="#FF66B2" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+/* ====================================================================== */
+/*                      Report Detail Dialog (เหมือนเดิม)                  */
+/* ====================================================================== */
+const ReportDetailDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  data: ReportDetail | null;
+}> = ({ open, onOpenChange, data }) => {
+  const scores = normalizeScores(data?.scores);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl p-0">
+        <div className="p-5">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="font-kanit text-lg">รายละเอียดรายงาน</DialogTitle>
+          </DialogHeader>
+
+          {/* แถบหัวบนสีเขียว */}
+          {data?.opinion && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 mb-4">
+              <div className="text-sm text-emerald-700 font-kanit">{data?.meta || ""}</div>
+              <div className="text-gray-800 font-kanit">{data?.opinion}</div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-2 bg-gray-50 px-4 py-2 text-sm font-kanit text-gray-600">
+              <div>ฟิลด์</div><div>ค่า</div>
+            </div>
+
+            <div className="divide-y">
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">user_id</div><div className="font-kanit">{data?.user_id ?? "-"}</div></div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">สายกิจ</div><div className="font-kanit">{data?.business_line ?? "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">เขต</div><div className="font-kanit">{data?.district ?? "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ภาค</div><div className="font-kanit">{data?.region ?? "-"}</div></div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">สาขา</div><div className="font-kanit">{data?.branch ?? "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">province</div><div className="font-kanit">{data?.province ?? "-"}</div></div>
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">เข้าใช้บริการครั้งล่าสุด</div><div className="font-kanit">{data?.last_visit ?? "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ทำธุรกรรมประเภทใด</div><div className="font-kanit">{data?.transaction_type ?? "-"}</div></div>
+
+              {scores.map((s, i) => (
+                <div key={i} className="grid grid-cols-2 px-4 py-2 text-sm">
+                  <div className="font-kanit text-gray-600">{s.label}</div>
+                  <div className="font-kanit">{s.value}</div>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">ความคิดเห็น</div><div className="font-kanit">{data?.opinion || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">main_category</div><div className="font-kanit">{data?.main_category || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sub_category</div><div className="font-kanit">{data?.sub_category || "-"}</div></div>
+              <div className="grid grid-cols-2 px-4 py-2 text-sm"><div className="font-kanit text-gray-600">sentiment</div><div className="font-kanit">{data?.sentiment || "-"}</div></div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -490,6 +653,10 @@ interface FeedbackItem {
 const CustomerFeedback: React.FC = () => {
   const [activeFilter, setActiveFilter] =
     useState<"all" | "positive" | "negative">("all");
+
+  // Dialog สร้างรายงาน
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<ReportDetail | null>(null);
 
   const feedbackData: FeedbackItem[] = [
     {
@@ -605,13 +772,47 @@ const CustomerFeedback: React.FC = () => {
                   <span className="text-sm text-muted-foreground font-kanit">
                     {item.region} • {item.branch}
                   </span>
-                  <span className="text-sm text-muted-foreground font-kanit">
-                    {item.date} {item.time}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-kanit">
+                      {item.date} {item.time}
+                    </span>
+                    {/* ปุ่ม “สร้างรายงาน” (แทน Export) */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg text-gray-600 hover:bg-gray-100"
+                      aria-label="สร้างรายงาน"
+                      title="สร้างรายงาน"
+                      onClick={() => {
+                        setReportData({
+                          user_id: null,
+                          business_line: "-",            // ยังไม่มีข้อมูล → ใส่จริงภายหลังได้
+                          district: "-",                 // ยังไม่มีข้อมูล
+                          region: item.region,           // ภาค
+                          branch: item.branch,           // สาขา
+                          province: "-",                 // ยังไม่มีข้อมูล
+                          last_visit: `${item.date} ${item.time}`,
+                          transaction_type: "-",         // ยังไม่มีข้อมูล
+                          scores: normalizeScores(),     // โชว์ครบ 7 ข้อ 0/5
+                          opinion: item.content,
+                          main_category: item.tags?.[0] || "-",
+                          sub_category: item.tags?.[0] || "-",
+                          sentiment: item.sentiment,
+                          created_at: `${item.date} ${item.time}`,
+                          meta: `${item.region} • ${item.branch}`,
+                        });
+                        setReportOpen(true);
+                      }}
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
+
                 <p className="text-foreground font-kanit mb-3 leading-relaxed">
                   {item.content}
                 </p>
+
                 <div className="flex flex-wrap gap-2">
                   {item.tags.map((tag, index) => (
                     <span
@@ -632,6 +833,9 @@ const CustomerFeedback: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Dialog แสดงรายละเอียดรายงาน */}
+        <ReportDetailDialog open={reportOpen} onOpenChange={setReportOpen} data={reportData} />
       </CardContent>
     </Card>
   );
@@ -655,10 +859,7 @@ const MarketConduct: React.FC = () => {
       <header className="topbar px-6">
         <div className="w-full">
           <div className="flex items-center justify-between relative z-10">
-
-            {/* Drawer: ใช้ตัวเดียว */}
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              {/* Trigger โชว์เฉพาะมือถือ */}
               <div className="md:hidden">
                 <SheetTrigger asChild>
                   <Button

@@ -35,7 +35,7 @@ const menuItems: RailItem[] = [
   { icon: AlertTriangle, label: "ข้อร้องเรียนของลูกค้า", tooltip: "ข้อร้องเรียนของลูกค้า", path: "/strong-complaints" },
   { icon: Briefcase, label: "Market Conduct", tooltip: "Market Conduct", path: "/market-conduct" },
   { icon: Bot, label: "AI Chat ช่วยวิเคราะห์", tooltip: "AI Chat ช่วยวิเคราะห์", path: "/ai-chatbot" },
-  { icon: FileText, label: "เอกสารอ้างอิง", tooltip: "เอกสารอ้างอิง", path: "/dashboard", hash: "docs" },
+  { icon: FileText, label: "เอกสารอ้างอิง", tooltip: "เอกสารอ้างอิง", path: "/reference-tables" },
 ];
 
 export const MiniRailSidebar = ({

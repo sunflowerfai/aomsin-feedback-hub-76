@@ -32,7 +32,7 @@ const menuItems: DrawerItem[] = [
   { icon: AlertTriangle, label: "ข้อร้องเรียนรุนแรง", path: "/strong-complaints" },
   { icon: Briefcase, label: "Market Conduct", path: "/market-conduct" },
   { icon: Bot, label: "AI Chat ช่วยวิเคราะห์", path: "/ai-chatbot" },
-  { icon: FileText, label: "เอกสารอ้างอิง", path: "/dashboard", hash: "docs" },
+  { icon: FileText, label: "เอกสารอ้างอิง", path: "/reference-tables" },
 ];
 
 export const MenuItems = ({ onItemClick, className = "", activeKey }: MenuItemsProps) => {

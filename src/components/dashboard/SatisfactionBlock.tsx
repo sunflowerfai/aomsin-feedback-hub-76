@@ -482,6 +482,17 @@ const satisfactionDataByRegion = {
   }]
 };
 
+// แปลง label สั้น (เรดาร์) → คำอธิบายยาว (ตาราง)
+const CRITERIA_LONG_LABELS: Record<string, string> = {
+  "การดูแล ความเอาใจใส่": "ความพึงพอใจต่อการดูแล เอาใจใส่ ความสบายใจเมื่อมาใช้บริการ",
+  "ความประทับใจฯ": "ความพึงพอใจต่อความประทับใจในการเข้าใช้บริการที่ธนาคารออมสินสาขา",
+  "ความน่าเชื่อถือฯ": "ความพึงพอใจต่อการตอบคำถาม ให้คำแนะนำ ความน่าเชื่อถือ ความเป็นมืออาชีพ",
+  "ความรวดเร็วฯ": "ความพึงพอใจต่อความรวดเร็วในการให้บริการ (หลังเรียกคิว)",
+  "ความถูกต้องฯ": "ความพึงพอใจต่อความถูกต้องในการทำธุรกรรม",
+  "ความพร้อมฯ": "ความพึงพอใจต่อความพร้อมของเครื่องมือ เช่น ATM / ADM / Passbook",
+  "สภาพแวดล้อมฯ": "ความพึงพอใจต่อสภาพแวดล้อมของสาขา (การจัดพื้นที่ ความสะอาด แสงสว่าง)",
+};
+
 // Categories mapping based on the image
 const categoryMapping = {
   "เลือกทั้งหมด": "all",
@@ -494,33 +505,6 @@ const categoryMapping = {
   "ความประทับใจในการให้บริการ": ["ความประทับใจฯ"]
 };
 
-// Table data with assessment criteria (using specified fake scores)
-const satisfactionTableData: Array<{
-  criteria: string;
-  score: number | string;
-}> = [{
-  criteria: "ความพึงพอใจต่อการดูแล เอาใจใส่ ความสบายใจเมื่อมาใช้บริการ",
-  score: 4.86
-}, {
-  criteria: "ความพึงพอใจต่อการตอบคำถาม ให้คำแนะนำ ความน่าเชื่อถือ ความเป็นมืออาชีพ",
-  score: 4.71
-}, {
-  criteria: "ความพึงพอใจต่อความรวดเร็วในการให้บริการ (หลังเรียกคิว)",
-  score: 4.28
-}, {
-  criteria: "ความพึงพอใจต่อความถูกต้องในการทำธุรกรรม",
-  score: 4.63
-}, {
-  criteria: "ความพึงพอใจต่อความพร้อมของเครื่องมือ เช่น ATM / ADM / Passbook",
-  score: 4.90
-}, {
-  criteria: "ความพึงพอใจต่อสภาพแวดล้อมของสาขา (การจัดพื้นที่ ความสะอาด แสงสว่าง)",
-  score: 4.35
-}, {
-  criteria: "ความพึงพอใจต่อความประทับใจในการเข้าใช้บริการที่ธนาคารออมสินสาขา",
-  score: 4.77
-}];
-
 // Helper function to normalize score value
 const normalizeScore = (score: number | string): number => {
   if (typeof score === 'string') {
@@ -529,20 +513,9 @@ const normalizeScore = (score: number | string): number => {
   return score;
 };
 
-// Calculate percentage from score (linear calculation within range)
+// เปลี่ยนเป็นสูตรตามสเกล 1–5 → 0–100%
 const calculatePercentage = (score: number): number => {
-  if (score >= 4.51 && score <= 5.00) {
-    // Linear interpolation between 90.20 and 100.00
-    return Math.round(90.2 + (score - 4.51) / (5.00 - 4.51) * (100.0 - 90.2));
-  } else if (score >= 3.51 && score <= 4.50) {
-    return Math.round(70.2 + (score - 3.51) / (4.50 - 3.51) * (90.0 - 70.2));
-  } else if (score >= 2.51 && score <= 3.50) {
-    return Math.round(50.2 + (score - 2.51) / (3.50 - 2.51) * (70.0 - 50.2));
-  } else if (score >= 1.51 && score <= 2.50) {
-    return Math.round(30.2 + (score - 1.51) / (2.50 - 1.51) * (50.0 - 30.2));
-  } else {
-    return Math.round(20.0 + (score - 1.00) / (1.50 - 1.00) * (30.0 - 20.0));
-  }
+  return Math.round((score / 5) * 100);
 };
 
 // Get satisfaction level and color
@@ -572,67 +545,59 @@ const getSatisfactionLevel = (score: number): {
   };
 };
 export const SatisfactionBlock = () => {
-  const [selectedRegion, setSelectedRegion] = useState<keyof typeof satisfactionDataByRegion | "all">("all");
-  const [selectedCategory, setSelectedCategory] = useState<string>("เลือกทั้งหมด");
+  const [selectedRegion, setSelectedRegion] =
+    useState<keyof typeof satisfactionDataByRegion | "all">("all");
 
-  // Calculate average data across all regions when "all" is selected
+  // ค่าเฉลี่ยทุกภาค (กรณีเลือก "all")
   const calculateAverageData = () => {
-    const criteriaNames = Object.keys(satisfactionDataByRegion).length > 0 ? satisfactionDataByRegion[Object.keys(satisfactionDataByRegion)[0] as keyof typeof satisfactionDataByRegion].map(item => item.criteria) : [];
-    return criteriaNames.map(criteria => {
-      const scores = Object.values(satisfactionDataByRegion).map(regionData => regionData.find(item => item.criteria === criteria)?.score || 0);
-      const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-      return {
-        criteria,
-        score: averageScore
-      };
+    const firstKey = Object.keys(satisfactionDataByRegion)[0] as keyof typeof satisfactionDataByRegion;
+    const criteriaNames =
+      Object.keys(satisfactionDataByRegion).length > 0
+        ? satisfactionDataByRegion[firstKey].map((item) => item.criteria)
+        : [];
+
+    return criteriaNames.map((criteria) => {
+      const scores = Object.values(satisfactionDataByRegion).map(
+        (regionData) => regionData.find((it) => it.criteria === criteria)?.score ?? 0
+      );
+      const averageScore = scores.reduce((s, v) => s + v, 0) / scores.length;
+      return { criteria, score: averageScore };
     });
   };
 
-  // Calculate bar chart data based on selected category
-  const calculateBarChartData = () => {
-    const regions = Object.keys(satisfactionDataByRegion);
-    return regions.map(region => {
-      const regionData = satisfactionDataByRegion[region as keyof typeof satisfactionDataByRegion];
-      let score = 0;
-      if (selectedCategory === "เลือกทั้งหมด") {
-        // Calculate average of all criteria
-        score = regionData.reduce((sum, item) => sum + item.score, 0) / regionData.length;
-      } else {
-        // Find matching criteria for the selected category
-        const matchingCriteria = categoryMapping[selectedCategory as keyof typeof categoryMapping];
-        if (Array.isArray(matchingCriteria)) {
-          const matchingScores = regionData.filter(item => matchingCriteria.some(criteria => item.criteria.includes(criteria)));
-          score = matchingScores.length > 0 ? matchingScores.reduce((sum, item) => sum + item.score, 0) / matchingScores.length : 0;
-        }
-      }
-      return {
-        region,
-        current: score,
-        previous: score - 0.1 + Math.random() * 0.2 // Mock previous data with slight variation
-      };
-    });
-  };
+  // ข้อมูลเรดาร์ (ผูกกับ dropdown ภาค)
+  const satisfactionCriteria =
+    selectedRegion === "all"
+      ? calculateAverageData()
+      : satisfactionDataByRegion[selectedRegion];
 
-  // ข้อมูลที่จะแสดงใน RadarChart (ใช้ dropdown ซ้าย)
-  const satisfactionCriteria = selectedRegion === "all" ? calculateAverageData() : satisfactionDataByRegion[selectedRegion];
+  // ค่าเฉลี่ยกลางกราฟ
+  const averageScore =
+    satisfactionCriteria.reduce((sum, item) => sum + item.score, 0) /
+    satisfactionCriteria.length;
 
-  // คำนวณค่าเฉลี่ย
-  const averageScore = satisfactionCriteria.reduce((sum, item) => sum + item.score, 0) / satisfactionCriteria.length;
+  // ข้อมูลตาราง (แมพ label สั้น -> คำอธิบายยาว)
+  const satisfactionTableData = satisfactionCriteria.map((item) => ({
+    criteria: CRITERIA_LONG_LABELS[item.criteria] ?? item.criteria,
+    score: item.score,
+  }));
 
-  // ข้อมูลสำหรับ Bar Chart (ใช้ dropdown ขวา)
-  const barChartData = calculateBarChartData();
-  return <div className="relative rounded-xl border border-slate-100 bg-white shadow-sm p-0">
+  return (
+    <div className="relative rounded-xl border border-slate-100 bg-white shadow-sm p-0">
       {/* Single pink header stripe */}
-      <div className="h-2 rounded-t-2xl"
-        style={{ background: 'var(--gradient-pink-strip)' }}></div>
-      
+      <div
+        className="h-2 rounded-t-2xl"
+        style={{ background: "var(--gradient-pink-strip)" }}
+      />
       {/* Parent Header */}
       <div className="px-6 py-6 border-b border-slate-100">
         <div className="flex items-center justify-between">
-          <h2 className="font-kanit text-xl font-bold text-foreground">คะแนนความพึงพอใจ</h2>
+          <h2 className="font-kanit text-xl font-bold text-foreground">
+            คะแนนความพึงพอใจ
+          </h2>
         </div>
       </div>
-      
+
       {/* Content Area */}
       <div className="grid grid-cols-12 gap-6 items-stretch p-6">
         {/* Radar Chart Card - Left Side */}
@@ -640,27 +605,26 @@ export const SatisfactionBlock = () => {
           <div className="h-full min-h-[520px] rounded-lg border border-slate-100 bg-white flex flex-col">
             <CardHeader className="pb-4 pt-6">
               <div className="grid grid-cols-3 items-center gap-3">
-                {/* ซ้ายเว้นว่างไว้เพื่อบาลานซ์ */}
                 <div />
-
-                {/* กลาง: หัวข้อ ชิดกลางและตัดคำถ้ายาว */}
                 <CardTitle className="font-kanit text-lg font-semibold text-foreground text-center truncate">
                   คะแนนเฉลี่ยตามเกณฑ์
                 </CardTitle>
-
-                {/* ขวา: ตัวเลือก */}
                 <div className="justify-self-end">
                   <Select
                     value={selectedRegion}
                     onValueChange={(value) =>
-                      setSelectedRegion(value as keyof typeof satisfactionDataByRegion | "all")
+                      setSelectedRegion(
+                        value as keyof typeof satisfactionDataByRegion | "all"
+                      )
                     }
                   >
                     <SelectTrigger className="w-[140px] bg-white border border-border rounded-lg text-sm font-kanit whitespace-nowrap">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-border rounded-lg shadow-lg z-50">
-                      <SelectItem value="all" className="font-kanit">เลือกทั้งหมด</SelectItem>
+                      <SelectItem value="all" className="font-kanit">
+                        เลือกทั้งหมด
+                      </SelectItem>
                       {Object.keys(satisfactionDataByRegion).map((region) => (
                         <SelectItem key={region} value={region} className="font-kanit">
                           {region}
@@ -671,66 +635,86 @@ export const SatisfactionBlock = () => {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="flex-1 flex flex-col p-6 pt-0">
               <div className="space-y-4 flex-1 flex flex-col">
                 <div className="flex-1 flex items-center justify-center">
                   <div className="relative w-full h-full">
-                      <div className="relative h-96">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart data={satisfactionCriteria} cx="50%" cy="50%" outerRadius="74%">
-                            <PolarGrid stroke="#E5E7EB" strokeOpacity={0.5} />
-                            <PolarAngleAxis
-                              dataKey="criteria"
-                              tick={(props) => {
-                                const { payload, x, y, textAnchor } = props;
-                                const criteriaItem = satisfactionCriteria.find(
-                                  (item) => item.criteria === payload.value
-                                );
-                                const score = criteriaItem ? criteriaItem.score.toFixed(1) : "";
-                                return (
-                                  <g>
-                                    <text
-                                      x={x}
-                                      y={y}
-                                      textAnchor={textAnchor}
-                                      fontSize={18}
-                                      fontFamily="Kanit"
-                                      fontWeight={400}
-                                      fill="#111"
-                                      style={{ padding: "16px", lineHeight: "18px", whiteSpace: "nowrap" }}
-                                    >
-                                      <tspan fill="#111">{payload.value}</tspan>
-                                      <tspan fill="#D8218C">{"\u00A0" + score}</tspan>
-                                    </text>
-                                  </g>
-                                );
-                              }}
-                            />
-                            {/* ซ่อนเลข 0/2 ภายใน */}
-                            <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} tickLine={false} axisLine={false} />
-                            <Radar
-                              name="คะแนน"
-                              dataKey="score"
-                              stroke="#DF7AB0"
-                              fill="#DF7AB0"
-                              fillOpacity={0.3}
-                              strokeWidth={2}
-                              dot={{ r: 4, fill: "#DF7AB0" }}
-                            />
-                          </RadarChart>
-                        </ResponsiveContainer>
+                    <div className="relative h-96">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart
+                          data={satisfactionCriteria}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius="74%"
+                        >
+                          <PolarGrid stroke="#E5E7EB" strokeOpacity={0.5} />
+                          <PolarAngleAxis
+                            dataKey="criteria"
+                            tick={(props: any) => {
+                              const { payload, x, y, textAnchor } = props;
+                              const criteriaItem = satisfactionCriteria.find(
+                                (it) => it.criteria === payload.value
+                              );
+                              const score = criteriaItem
+                                ? criteriaItem.score.toFixed(1)
+                                : "";
+                              return (
+                                <g>
+                                  <text
+                                    x={x}
+                                    y={y}
+                                    textAnchor={textAnchor}
+                                    fontSize={18}
+                                    fontFamily="Kanit"
+                                    fontWeight={400}
+                                    fill="#111"
+                                    style={{
+                                      padding: "16px",
+                                      lineHeight: "18px",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <tspan fill="#111">{payload.value}</tspan>
+                                    <tspan fill="#D8218C">
+                                      {"\u00A0" + score}
+                                    </tspan>
+                                  </text>
+                                </g>
+                              );
+                            }}
+                          />
+                          <PolarRadiusAxis
+                            angle={90}
+                            domain={[0, 5]}
+                            tick={false}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <Radar
+                            name="คะแนน"
+                            dataKey="score"
+                            stroke="#DF7AB0"
+                            fill="#DF7AB0"
+                            fillOpacity={0.3}
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: "#DF7AB0" }}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
 
-                        {/* ===== ข้อความกลางกราฟ ===== */}
-                        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
-                          <div className="text-center">
-                            <div className="font-kanit text-5xl font-extrabold leading-none text-[#D8218C]">
-                              {averageScore.toFixed(1)}
-                            </div>
-                            <div className="font-kanit text-sm text-gray-500 mt-1">คะแนนเฉลี่ย</div>
+                      {/* ค่าเฉลี่ยกลางกราฟ */}
+                      <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+                        <div className="text-center">
+                          <div className="font-kanit text-5xl font-extrabold leading-none text-[#D8218C]">
+                            {averageScore.toFixed(1)}
+                          </div>
+                          <div className="font-kanit text-sm text-gray-500 mt-1">
+                            คะแนนเฉลี่ย
                           </div>
                         </div>
                       </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -751,68 +735,87 @@ export const SatisfactionBlock = () => {
                 </div>
               </div>
             </CardHeader>
+
             <CardContent className="flex-1 flex flex-col p-6 pt-0">
               <div className="flex-1 overflow-auto">
-                <div className="overflow-hidden rounded-lg border" style={{
-                borderColor: '#F1F5F9'
-              }}>
+                <div
+                  className="overflow-hidden rounded-lg border"
+                  style={{ borderColor: "#F1F5F9" }}
+                >
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
-                        <TableHead className="font-kanit font-bold text-gray-700 py-3 px-4 text-left border-b" style={{
-                        borderColor: '#F1F5F9'
-                      }}>
+                        <TableHead
+                          className="font-kanit font-bold text-gray-700 py-3 px-4 text-left border-b"
+                          style={{ borderColor: "#F1F5F9" }}
+                        >
                           รายการประเมิน
                         </TableHead>
-                        <TableHead className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b" style={{
-                        borderColor: '#F1F5F9'
-                      }}>
+                        <TableHead
+                          className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b"
+                          style={{ borderColor: "#F1F5F9" }}
+                        >
                           คะแนน
                         </TableHead>
-                        <TableHead className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b" style={{
-                        borderColor: '#F1F5F9'
-                      }}>
+                        <TableHead
+                          className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b"
+                          style={{ borderColor: "#F1F5F9" }}
+                        >
                           %
                         </TableHead>
-                        <TableHead className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b" style={{
-                        borderColor: '#F1F5F9'
-                      }}>
+                        <TableHead
+                          className="font-kanit font-bold text-gray-700 py-3 px-4 text-right border-b"
+                          style={{ borderColor: "#F1F5F9" }}
+                        >
                           เกณฑ์ระดับความพึงพอใจ
                         </TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
                       {satisfactionTableData.map((item, index) => {
-                      const normalizedScore = normalizeScore(item.score);
-                      const percentage = calculatePercentage(normalizedScore);
-                      const {
-                        level,
-                        color
-                      } = getSatisfactionLevel(normalizedScore);
-                      return <TableRow key={index} className="hover:bg-gray-50/30" style={{
-                        borderBottom: index < satisfactionTableData.length - 1 ? '1px solid #F1F5F9' : 'none'
-                      }}>
+                        const normalizedScore = normalizeScore(item.score);
+                        const percentage = calculatePercentage(normalizedScore);
+                        const { level, color } =
+                          getSatisfactionLevel(normalizedScore);
+
+                        return (
+                          <TableRow
+                            key={index}
+                            className="hover:bg-gray-50/30"
+                            style={{
+                              borderBottom:
+                                index < satisfactionTableData.length - 1
+                                  ? "1px solid #F1F5F9"
+                                  : "none",
+                            }}
+                          >
                             <TableCell className="font-kanit text-sm text-gray-900 py-3 px-4 leading-relaxed">
                               {item.criteria}
                             </TableCell>
+
                             <TableCell className="font-kanit text-sm font-medium text-gray-900 py-3 px-4 text-right">
-                              {normalizeScore(item.score).toFixed(2)}
+                              {normalizedScore.toFixed(2)}
                             </TableCell>
-                            <TableCell className="font-kanit text-sm font-medium py-3 px-4 text-right" style={{
-                          color
-                        }}>
+
+                            <TableCell
+                              className="font-kanit text-sm font-medium py-3 px-4 text-right"
+                              style={{ color }}
+                            >
                               {percentage}%
                             </TableCell>
+
                             <TableCell className="py-3 px-4 text-right">
-                              <Badge className="font-kanit text-xs font-medium px-2 py-1 rounded-md border-0" style={{
-                            backgroundColor: `${color}15`,
-                            color: color
-                          }}>
+                              <Badge
+                                className="font-kanit text-xs font-medium px-2 py-1 rounded-md border-0"
+                                style={{ backgroundColor: `${color}15`, color }}
+                              >
                                 {level}
                               </Badge>
                             </TableCell>
-                          </TableRow>;
-                    })}
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -821,7 +824,8 @@ export const SatisfactionBlock = () => {
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
 
 // Regional Comparison Component - เปรียบเทียบคะแนนรายภาค
@@ -861,58 +865,135 @@ export const RegionalComparisonCard = () => {
       {/* Header */}
       <div className="h-2 bg-gradient-to-r from-[#DF7AB0] to-[#F9B5D3] rounded-t-xl -mt-6 -mx-6 mb-6"></div>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-base font-semibold font-kanit text-foreground text-center">เปรียบเทียบคะแนนรายภาค</h3>
+        <h3 className="font-kanit text-xl font-bold text-foreground">เปรียบเทียบคะแนนรายภาค</h3>
         <TopicFilterDropdown value={filters.topic} onValueChange={value => setFilters({
         topic: value
       })} />
       </div>
 
-      {/* Custom SVG Chart */}
-      <div className="w-full overflow-x-auto" style={{
-      minWidth: '320px'
-    }}>
-        <svg width="100%" height="240" viewBox="0 0 1200 240" className="w-full h-60">
-          <defs>
-            <linearGradient id="pinkGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FF0080" />
-              <stop offset="100%" stopColor="#FF66B2" />
-            </linearGradient>
-          </defs>
+      {/* Custom SVG Chart (responsive, ใหญ่เท่ากราฟ dashboard) */}
+      <div className="w-full overflow-x-auto">
+        {(() => {
+          // ==== Layout ====
+          const GRID_H = 200;            // ความสูงพื้นที่กราฟ (0..5)
+          const VB_H   = 260;            // รวมพื้นที่ป้าย/แกน
+          const STEP   = 60;             // ระยะห่างระหว่างกลุ่มแท่ง
+          const ML = 60;                 // margin ซ้าย
+          const MR = 80;                 // margin ขวา
+          const EXTRA_GROUP = 60;        // ส่วนเพิ่มท้ายกราฟให้ไม่ชิดขอบ
+          const vbWidth =
+            ML + MR + Math.max(0, regionalData.length - 1) * STEP + EXTRA_GROUP;
 
-          {/* Grid lines */}
-          <g>
-            {[0, 40, 80, 120, 160, 200].map(y => <line key={y} x1="50" y1={200 - y} x2="1150" y2={200 - y} stroke="#E5E7EB" strokeDasharray="4 4" />)}
-          </g>
+          return (
+            <svg
+              width="100%"
+              height="100%"
+              viewBox={`0 0 ${vbWidth} ${VB_H}`}
+              className="w-full h-[420px] md:h-[460px]" // <<< สูงเท่ากราฟ dashboard
+            >
+              <defs>
+                <linearGradient id="pinkGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#FF0080" />
+                  <stop offset="100%" stopColor="#FF66B2" />
+                </linearGradient>
+              </defs>
 
-          {/* Y-axis labels */}
-          <g>
-            {[0, 1, 2, 3, 4, 5].map((label, index) => <text key={label} x="40" y={205 - index * 40} fill="#9CA3AF" fontSize="10" textAnchor="end" fontFamily="Kanit">
-                {label}
-              </text>)}
-          </g>
+              {/* Grid lines */}
+              <g>
+                {[0, 40, 80, 120, 160, 200].map((y) => (
+                  <line
+                    key={y}
+                    x1={ML}
+                    y1={GRID_H - y}
+                    x2={vbWidth - MR}
+                    y2={GRID_H - y}
+                    stroke="#E5E7EB"
+                    strokeDasharray="4 4"
+                  />
+                ))}
+              </g>
 
-          {/* Bars */}
-          <g transform="translate(50,200) scale(1,-1)">
-            {regionalData.map((item, index) => {
-            const x = index * 60 + 10;
-            const prevHeight = item.previous / 5 * 200;
-            const currHeight = item.current / 5 * 200;
-            return <g key={item.region}>
-                  {/* Previous bar (grey) */}
-                  <rect x={x} y="0" width="22" height={prevHeight} fill="#D1D5DB" rx="2" ry="2" />
-                  {/* Current bar (pink gradient) */}
-                  <rect x={x + 25} y="0" width="22" height={currHeight} fill="url(#pinkGradient)" rx="2" ry="2" />
-                </g>;
-          })}
-          </g>
+              {/* Y-axis labels (0..5) */}
+              <g>
+                {[0, 1, 2, 3, 4, 5].map((label, i) => (
+                  <text
+                    key={label}
+                    x={ML - 10}
+                    y={GRID_H + 5 - i * 40}
+                    fill="#9CA3AF"
+                    fontSize="10"
+                    fontFamily="Kanit"
+                    textAnchor="end"
+                  >
+                    {label}
+                  </text>
+                ))}
+              </g>
 
-          {/* X-axis labels */}
-          <g>
-            {regionalData.map((item, index) => <text key={item.region} x={50 + index * 60 + 33} y="230" fill="#6B7280" fontSize="10" textAnchor="middle" fontFamily="Kanit" transform={`rotate(-30, ${50 + index * 60 + 33}, 230)`}>
-                {item.region}
-              </text>)}
-          </g>
-        </svg>
+              {/* Bars */}
+              <g transform={`translate(${ML}, ${GRID_H}) scale(1, -1)`}>
+                {regionalData.map((item, index) => {
+                  const baseX = index * STEP + 10;
+                  const prevHeight = (item.previous / 5) * GRID_H;
+                  const currHeight = (item.current / 5) * GRID_H;
+                  return (
+                    <g key={item.region}>
+                      {/* Previous (grey) */}
+                      <rect
+                        x={baseX}
+                        y="0"
+                        width="22"
+                        height={prevHeight}
+                        fill="#D1D5DB"
+                        rx="2"
+                        ry="2"
+                        style={{
+                          transition: "height 300ms cubic-bezier(0.22,1,0.36,1)",
+                          transitionDelay: `${index * 18}ms`,
+                        }}
+                      />
+                      {/* Current (pink gradient) */}
+                      <rect
+                        x={baseX + 25}
+                        y="0"
+                        width="22"
+                        height={currHeight}
+                        fill="url(#pinkGradient)"
+                        rx="2"
+                        ry="2"
+                        style={{
+                          transition: "height 300ms cubic-bezier(0.22,1,0.36,1)",
+                          transitionDelay: `${80 + index * 18}ms`,
+                        }}
+                      />
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* X-axis labels (ชื่อภาค) */}
+              <g>
+                {regionalData.map((item, index) => {
+                  const cx = ML + index * STEP + 33; // กึ่งกลางกลุ่มแท่ง
+                  return (
+                    <text
+                      key={item.region}
+                      x={cx}
+                      y={GRID_H + 55}
+                      fill="#6B7280"
+                      fontSize="10"
+                      textAnchor="middle"
+                      fontFamily="Kanit"
+                      transform={`rotate(-30, ${cx}, ${GRID_H + 55})`}
+                    >
+                      {item.region}
+                    </text>
+                  );
+                })}
+              </g>
+            </svg>
+          );
+        })()}
       </div>
     </Card>;
 };
